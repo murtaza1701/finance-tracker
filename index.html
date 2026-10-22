@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pengeflyt · Personal finance tracker</title>
+  <meta name="description" content="Pengeflyt is a personal finance tracker: log income and expenses, set monthly budgets per category and see where your money goes.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="src/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#view">Skip to content</a>
+
+  <div class="app">
+    <nav class="sidebar" aria-label="Main">
+      <a class="brand" href="#/dashboard">
+        <svg class="logo" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="9" fill="#256abf"/>
+          <path d="M6.5 20c3.8 0 5-8 9.5-8s5.7 6.5 9.5 6.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+        </svg>
+        <span>Pengeflyt</span>
+      </a>
+      <button type="button" class="button button-primary sidebar-add" data-action="add-transaction">
+        <span data-icon="plus"></span>Add transaction
+      </button>
+      <a class="nav-link" href="#/dashboard" data-route="dashboard"><span data-icon="overview"></span><span>Overview</span></a>
+      <a class="nav-link" href="#/transactions" data-route="transactions"><span data-icon="list"></span><span>Transactions</span></a>
+      <a class="nav-link" href="#/budgets" data-route="budgets"><span data-icon="target"></span><span>Budgets</span></a>
+      <a class="nav-link" href="#/settings" data-route="settings"><span data-icon="settings"></span><span>Settings</span></a>
+      <p class="sidebar-foot"><span data-icon="lock"></span>Your data stays in this browser.</p>
+    </nav>
+
+    <main id="view" class="view" tabindex="-1">
+      <p class="loading">Loading…</p>
+      <noscript>Pengeflyt needs JavaScript to run.</noscript>
+    </main>
+  </div>
+
+  <button type="button" class="fab" data-action="add-transaction" aria-label="Add transaction"><span data-icon="plus"></span></button>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <input type="file" id="import-file" accept=".json,application/json" hidden>
+
+  <!-- Add / edit transaction -->
+  <dialog id="tx-dialog" class="sheet" aria-labelledby="tx-dialog-title">
+    <form method="dialog" novalidate>
+      <header class="sheet-header">
+        <h2 id="tx-dialog-title">Add transaction</h2>
+        <button type="button" class="icon-button" data-close aria-label="Close"><span data-icon="close"></span></button>
+      </header>
+      <div class="sheet-body">
+        <fieldset class="segmented segmented-wide">
+          <legend class="visually-hidden">Type</legend>
+          <label><input type="radio" name="type" value="expense" checked><span>Expense</span></label>
+          <label><input type="radio" name="type" value="income"><span>Income</span></label>
+        </fieldset>
+
+        <div class="field">
+          <label for="tx-amount">Amount</label>
+          <div class="amount-input">
+            <input id="tx-amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="0" aria-describedby="tx-amount-error">
+            <span class="amount-currency" data-slot="currency">kr</span>
+          </div>
+          <p class="field-error" id="tx-amount-error" hidden></p>
+        </div>
+
+        <fieldset class="field">
+          <legend>Category</legend>
+          <div class="category-grid" data-slot="categories"></div>
+          <p class="field-error" id="tx-category-error" hidden></p>
+        </fieldset>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="tx-date">Date</label>
+            <input class="input" id="tx-date" name="date" type="date" aria-describedby="tx-date-error">
+            <p class="field-error" id="tx-date-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="tx-note">Note <span class="optional">(optional)</span></label>
+            <input class="input" id="tx-note" name="note" maxlength="120" autocomplete="off" placeholder="e.g. Weekly shop" aria-describedby="tx-note-error">
+            <p class="field-error" id="tx-note-error" hidden></p>
+          </div>
+        </div>
+      </div>
+      <footer class="sheet-footer">
+        <button type="button" class="button button-ghost-danger" data-delete hidden><span data-icon="trash"></span>Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="button button-secondary" data-close>Cancel</button>
+        <button type="submit" class="button button-primary">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Set a monthly budget for one category -->
+  <dialog id="budget-dialog" class="sheet sheet-small" aria-labelledby="budget-dialog-title">
+    <form method="dialog" novalidate>
+      <header class="sheet-header">
+        <h2 id="budget-dialog-title">Budget</h2>
+        <button type="button" class="icon-button" data-close aria-label="Close"><span data-icon="close"></span></button>
+      </header>
+      <div class="sheet-body">
+        <div class="field">
+          <label for="budget-amount">Monthly budget</label>
+          <div class="amount-input">
+            <input id="budget-amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="0" aria-describedby="budget-hint budget-amount-error">
+            <span class="amount-currency" data-slot="currency">kr</span>
+          </div>
+          <p class="field-error" id="budget-amount-error" hidden></p>
+        </div>
+        <p class="field-hint" id="budget-hint">
+          <span data-slot="hint"></span>
+          <button type="button" class="link-button" data-use-suggestion hidden></button>
+        </p>
+      </div>
+      <footer class="sheet-footer">
+        <button type="button" class="button button-ghost-danger" data-remove hidden>Remove budget</button>
+        <span class="spacer"></span>
+        <button type="button" class="button button-secondary" data-close>Cancel</button>
+        <button type="submit" class="button button-primary">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Yes/no questions -->
+  <dialog id="confirm-dialog" class="sheet sheet-small" aria-labelledby="confirm-title">
+    <form method="dialog">
+      <div class="sheet-body confirm-body">
+        <h2 id="confirm-title" data-slot="title"></h2>
+        <p data-slot="message"></p>
+      </div>
+      <footer class="sheet-footer">
+        <span class="spacer"></span>
+        <button value="cancel" class="button button-secondary">Cancel</button>
+        <button value="confirm" class="button button-primary" data-slot="confirm">OK</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script>
+    // Browsers refuse to load the app's JavaScript modules from a file:// address,
+    // so explain how to start it properly instead of showing a blank page.
+    if (location.protocol === 'file:') {
+      document.getElementById('view').innerHTML =
+        '<div class="file-warning"><h1>Almost there!</h1>' +
+        '<p>Browsers block this app when it is opened directly as a file. Start the small local web server from the project folder:</p>' +
+        '<pre>python3 serve.py</pre><p>…and open <a href="http://localhost:8000">http://localhost:8000</a>.</p></div>';
+    }
+  </script>
+</body>
+</html>
