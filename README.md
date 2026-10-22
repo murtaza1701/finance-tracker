@@ -1,177 +1,187 @@
-# Pengeflyt – personal finance tracker
+# Pengeflyt – formue og forbruk på ett sted
 
-**Pengeflyt** (Norwegian for "money flow") is a personal finance tracker for students. You log what comes
-in and what goes out, set a monthly budget for each spending category, and the app shows where your money
-actually goes: how much you saved this month, which categories you spend the most on, which budgets are
-about to run out, and how much you can still spend per day for the rest of the month.
+**Pengeflyt** samler hele formuen din på ett sted: bankkontoer, sparing og BSU, fond, aksjer, krypto
+(f.eks. Firi og Binance) og gjeld som studielån. Kryptoverdiene følger markedet **i sanntid**, og når du
+setter inn eller tar ut penger, oppdateres totalen med en gang. Appen viser også hvordan formuen har
+utviklet seg over tid og hvor mye avkastning fond, aksjer og krypto har gitt. I tillegg kan du følge
+forbruket ditt måned for måned og sette budsjetter per kategori.
 
-It is a web app that runs entirely in the browser. There is no account and no server, and your data never
-leaves your device (it is stored in the browser's `localStorage`).
+Appen kjører helt i nettleseren. Det finnes ingen konto, innlogging eller server, og dataene dine forlater
+aldri maskinen (de lagres i nettleserens `localStorage`). Bare kryptokursene hentes fra nettet.
 
-> Built for Assignment 3 in *Intro til AI* (vibe coding): the app was planned, written, tested and improved
-> together with an AI coding agent. See [How AI was used](#how-ai-was-used).
+> Laget i Oppgave 3 i *Intro til KI* (vibe coding): appen er planlagt, skrevet, testet og forbedret sammen
+> med en KI-kodeagent. Se [Slik ble KI brukt](#slik-ble-ki-brukt).
 
-## Features
+## Funksjoner
 
-**1. Transactions**
-- Add income or expenses in a few seconds: amount, category (with icons), date and an optional note
-- Amounts can be typed the Norwegian or the English way: `450`, `129,90`, `1 234,50`, `1,234.50`, `199,-`
-- Edit or delete any transaction. Deleting can be undone (toast button or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>)
-- List grouped by day with daily totals, plus filters by month, type and category and a search box
-- Export the list to CSV (opens in Excel, Numbers and Google Sheets)
+**1. Formueoversikt**
+- Kontoer av alle typer: bank, sparing, fond, aksjer, krypto, annet og gjeld
+- Nettoformue (eiendeler minus gjeld), fordeling per type og avkastning på det du har satt inn
+- Graf over formuen dag for dag (1 mnd, 3 mnd, 6 mnd, 1 år eller alt), med tabellvisning
+- En egen side per konto med verdi, beholdning, graf og alle bevegelser
 
-**2. Monthly budgets**
-- Set a monthly limit per category; each one gets a progress bar that turns amber at 80 % and red when over
-- A marker on each bar shows how far through the month you are, so you can see if you're spending too fast
-- "You can spend about 214 kr a day for the rest of the month"
-- **Suggest budgets** fills in budgets from your average spending over the last 3 months
+**2. Innskudd, uttak og overføringer**
+- Registrer innskudd, uttak eller ny saldo/verdi med et par trykk; totalen oppdateres med en gang
+- Kryptokjøp og -salg: skriv antall *eller* beløp, så regner appen ut det andre med live-kursen
+- Overføringer: velg «Pengene kom fra Brukskonto», så trekkes beløpet fra banken automatisk og formuen
+  telles ikke dobbelt
+- Du kan ikke selge flere mynter enn du har, og alt kan slettes og angres (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>)
 
-**3. Overview dashboard**
-- Net balance for the month, how much of your income you kept, and change compared with last month
-- Spending by category (select a category to jump to its transactions)
-- Income vs. expenses for the last 6 months as a chart, with tooltips and a table view
-- Budget watch: the budgets that need attention, and the most recent transactions
+**3. Live kryptokurser**
+- Ny pris hvert sekund fra Binance (WebSocket), regnet om til kroner med kursen fra CoinGecko
+- Tallene som endres, blinker kort grønt eller rødt, og et «Live»-merke viser at strømmen er aktiv
+- Historiske dagskurser fra CoinGecko brukes i grafen, så kryptoverdien bakover i tid blir riktig
+- Ingen innlogging eller API-nøkler: appen spør bare om kurser, aldri om hva du eier
 
-**Also**
-- Demo data: six months of realistic sample data for a student in Norway, one click away
-- Backup and restore (JSON file), and delete everything (with undo)
-- Works on phones (bottom tab bar, bottom-sheet dialogs) and on desktop (sidebar)
-- Light and dark mode, follows the device or can be chosen in Settings
-- Currency setting (NOK, SEK, DKK, EUR, USD, GBP)
-- Keyboard: <kbd>N</kbd> adds a transaction, <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd> undoes the last delete
+**Forbruk og budsjett** (fra første versjon av appen)
+- Inntekter og utgifter med kategorier, søk, filtre og CSV-eksport (semikolon og desimalkomma for norsk Excel)
+- Månedlige budsjetter som varsler ved 80 % og viser hvor mye du kan bruke per dag resten av måneden
+- «Foreslå budsjetter» ut fra hva du har brukt de siste tre månedene
 
-## Run it locally
+**Ellers**
+- Eksempeldata: et år med kontoer for en student i Norge, med ekte historiske kryptokurser
+- Sikkerhetskopi og gjenoppretting (JSON), og sletting av alt (med angre)
+- Fungerer på mobil (fanelinje nederst, dialoger som bunnark) og PC, i lyst og mørkt tema
 
-You only need Python 3 (preinstalled on macOS; on Windows get it from python.org). There is nothing to install.
+## Kom i gang
+
+Du trenger bare Python 3 (følger med macOS; på Windows fra python.org). Ingenting må installeres.
 
 ```bash
 python3 serve.py
 ```
 
-Then open **http://localhost:8000**. Click **Explore with demo data** to fill the app with sample data.
+Åpne **http://localhost:8000** og trykk **Prøv med eksempeldata**, eller legg inn dine egne kontoer.
 
-Why a server? Browsers refuse to load JavaScript modules from a page opened as a file (`file://`), so
-double-clicking `index.html` only shows a message explaining how to start the server.
+Hvorfor en server? Nettlesere nekter å laste JavaScript-moduler fra en side som er åpnet som fil (`file://`).
+Dobbeltklikker du `index.html`, får du en melding som forklarer hvordan appen startes.
 
-## Tests
+## Tester
 
-The calculations, parsing, storage and export logic are covered by 68 unit tests.
+105 enhetstester dekker beregningene, tolkning av tall, lagring, overføringer, kurser og eksport.
 
-- **In the browser:** start the server and open **http://localhost:8000/tests/**
-- **In a macOS terminal** (uses the JavaScript engine built into macOS):
+- **I nettleseren:** start serveren og åpne **http://localhost:8000/tests/**
+- **I terminalen på Mac** (med JavaScript-motoren som følger med macOS):
   ```bash
   /System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc -m tests/cli.js
   ```
 
-See [Testing](#testing) for what was tested by hand and the bugs that testing found.
+Se [Testing](#testing) for hva som ble testet for hånd, og feilene testingen fant.
 
-## Publish with GitHub Pages
+## Publisering med GitHub Pages
 
-The app is plain static files, so GitHub Pages can host it for free:
+Appen er bare statiske filer, så GitHub Pages kan vise den gratis:
 
-1. Create a new repository on GitHub and push this folder to it.
-2. In the repository, go to **Settings → Pages**, choose **Deploy from a branch**, pick `main` and `/ (root)`, and save.
-3. After a minute the app is live at `https://<your-username>.github.io/<repository-name>/`.
+1. Lag et nytt, offentlig repository på GitHub og push denne mappen dit.
+2. Gå til **Settings → Pages**, velg **Deploy from a branch**, `main` og `/ (root)`, og lagre.
+3. Etter et minutt ligger appen på `https://<brukernavn>.github.io/<repository>/`.
 
-## How it's built
+## Slik er appen bygget
 
-Plain HTML, CSS and JavaScript (ES modules), with no frameworks, no build step and no dependencies.
+Vanlig HTML, CSS og JavaScript (ES-moduler) – ingen rammeverk, ingen byggesteg og ingen avhengigheter.
 
 ```
-index.html          page shell: navigation and the dialogs
-styles.css          all styling, light/dark themes, phone layout
-serve.py            tiny local web server
+index.html            sideskall: meny og dialoger
+styles.css            all stil, lyst/mørkt tema og mobilvisning
+serve.py              liten lokal webserver
 src/
-  app.js            entry point: routing (#/budgets …), rendering, button actions
-  store.js          the data (transactions, budgets, settings): validation and saving to localStorage
-  finance.js        all calculations: monthly totals, spending per category, budgets, suggestions
-  money.js          reading typed amounts and formatting money
-  dates.js          date helpers (always local time, never UTC)
-  categories.js     the built-in categories
-  charts.js         the chart, category bars and budget progress bars
-  dialogs.js        add/edit transaction and budget dialogs
-  csv.js            CSV export
-  demo.js           demo data generator
-  html.js           safe HTML templates (escapes everything users type)
-  icons.js, ui.js   icons, toasts, confirm dialog, downloads
-  views/            one file per page: dashboard, transactions, budgets, settings
-tests/              unit tests and a tiny test runner
+  app.js              startpunkt: ruting (#/formue …), tegning av sider, knapper og kursstrøm
+  store.js            dataene: kontoer, bevegelser, transaksjoner, budsjetter; sjekk og lagring
+  networth.js         formueberegninger: saldo fra bevegelser, avkastning, formue dag for dag
+  prices.js           kryptokurser: Binance (sanntid), CoinGecko (kroner, døgnendring, historikk)
+  accounts.js         kontotyper og kryptovalutaer
+  finance.js          forbruksberegninger: måneder, kategorier, budsjetter, forslag
+  money.js, dates.js  tall, kroner og datoer på norsk
+  charts.js           linjegraf, søylediagram, kategorilinjer og budsjettlinjer
+  dialogs.js          dialogene for konto, bevegelse, transaksjon og budsjett
+  demo.js             eksempeldata
+  csv.js, html.js     CSV-eksport og trygge HTML-maler
+  views/              én fil per side, pluss live.js som oppdaterer tall når kursene endres
+tests/                enhetstester og en liten testkjører
 ```
 
-Some design decisions:
-- **Money is stored in øre (whole numbers)**: `1 234,50 kr` is saved as `123450`. Decimal numbers don't add up
-  exactly in JavaScript (`0.1 + 0.2 = 0.30000000000000004`), but whole numbers do.
-- **Dates are stored as `YYYY-MM-DD` in local time.** Converting to UTC would move a transaction added at
-  23:30 in Norway to the next day.
-- **Everything the user types is escaped** before it is put on the page (`src/html.js`), and CSV exports
-  neutralise text that a spreadsheet could run as a formula.
-- **Saved data is validated when loaded.** If it is unreadable, a copy is kept instead of being overwritten.
-- **Chart colours** were checked for contrast and colour-blindness safety, and status is never shown by
-  colour alone (there is always an icon and a word too).
+Noen valg som er tatt:
+- **Saldoen regnes ut fra bevegelsene** (startsaldo, innskudd, uttak, ny verdi, kjøp, salg) i stedet for å
+  lagres som ett tall. Da stemmer alt også etter sletting og angring, og formuen kan regnes ut for hver dag
+  bakover i tid.
+- **Penger lagres i øre (heltall)**: `1 234,50 kr` lagres som `123450`, fordi desimaltall ikke summeres
+  nøyaktig i JavaScript (`0.1 + 0.2 = 0.30000000000000004`).
+- **Live-tall oppdateres uten å tegne siden på nytt**, så åpne lister, verktøytips og markøren ikke
+  forstyrres hvert sekund.
+- **Ingen hemmeligheter i koden.** Automatisk henting av saldo fra bank (krever lisensiert PSD2-aktør og
+  BankID) og fra Binance/Firi (krever API-nøkler som må holdes hemmelige) ble bevisst valgt bort; åpne
+  kursdata gir sanntid uten nøkler.
+- **Alt brukeren skriver blir «escapet»** før det vises (`src/html.js`), og CSV-eksporten hindrer at
+  regneark kjører tekst som formler.
+- **Fargene i grafene** er sjekket for kontrast og fargeblindhet, og status vises aldri bare med farge
+  (alltid også ikon, pil eller ord).
 
-## How AI was used
+## Slik ble KI brukt
 
-The app was built with **Claude Code** (Anthropic's AI coding agent, model Claude Opus 5.5), working directly
-in this project folder. The process:
+Appen er bygget med **Claude Code** (Anthropics KI-kodeagent, modellen Claude Opus 5.5), som jobbet direkte
+i prosjektmappen.
 
-1. **Idea → plan.** Starting from the assignment text and "I want to build a personal finance tracker", the
-   AI proposed the scope: three core features (transactions, budgets, overview), demo data so the app can be
-   explored straight away, and a zero-install web app that can be hosted for free on GitHub Pages.
-   Node.js wasn't installed on the computer, so the AI chose a set-up that needs only a browser and Python.
-2. **Logic first, with tests.** The calculations (money parsing, monthly totals, budgets, suggestions),
-   the data store and the CSV export were written as plain functions with unit tests, before any screens.
-3. **Interface.** Pages, dialogs, chart and styling were added on top, for both desktop and phone.
-4. **Testing in a real browser.** The AI ran the app in a browser and clicked through every feature,
-   on desktop and phone sizes, in light and dark mode, reading the page and taking screenshots. Every bug
-   it found was fixed and re-tested (list below).
-5. **Improving.** Wording, layout and the demo data were adjusted based on what the screenshots showed.
+1. **Første versjon.** Fra oppgaveteksten og «jeg vil lage en personal finance tracker» foreslo KI-en en
+   budsjettapp (transaksjoner, budsjetter, oversikt) som en webapp uten installasjon. Node.js fantes ikke
+   på maskinen, så den valgte en løsning som bare trenger nettleser og Python.
+2. **Ny retning.** Etter første versjon ombestemte jeg meg: jeg ville heller ha en samlet oversikt over
+   *formuen* min (bank, fond/aksjer, Binance/Firi) som holder seg oppdatert i sanntid. KI-en forklarte hva
+   som er realistisk: automatisk banksaldo krever lisens og BankID, og børsnøkler må holdes hemmelige.
+   Den foreslo heller live-kurser fra åpne kilder, og stilte tre spørsmål: erstatte eller beholde budsjett-
+   delen, språk, og automatisk synk med nøkler. Svarene ble: behold, norsk, og live-kurser uten nøkler.
+3. **Undersøke før bygging.** KI-en testet i nettleseren hvilke kurstjenester som svarer uten nøkler
+   (CoinGecko, Binance og Firi gjorde det; én annen ble blokkert) og at Binance sender priser hvert sekund.
+4. **Logikk først, med tester.** Beregningene (saldo fra bevegelser, avkastning, formue per dag,
+   overføringer, kurser) ble skrevet som rene funksjoner med enhetstester før skjermene.
+5. **Skjermer og oversetting.** Formuesiden, kontosiden og de nye dialogene ble laget, og hele appen ble
+   oversatt til norsk (også dato- og tallformat og CSV).
+6. **Testing i ekte nettleser.** KI-en klikket gjennom alle funksjonene på PC- og mobilstørrelse og i lyst
+   og mørkt tema, leste av siden og tok skjermbilder. Feil den fant, ble rettet og testet på nytt.
 
 ## Testing
 
-**Automated:** 68 unit tests (`tests/`) for amount parsing (Norwegian/English formats), money
-formatting, dates across month and year boundaries, monthly summaries, budget levels, the daily allowance,
-budget suggestions, filtering and search, saving and loading (including corrupt or full storage),
-backup validation, CSV escaping and formula protection, HTML escaping, chart scales and the demo data.
+**Automatisk:** 105 enhetstester (`tests/`) for blant annet tolkning av beløp og antall, norsk tallformat,
+datoer over måneds- og årsskifter, saldo fra bevegelser, avkastning, formue dag for dag med historiske
+kurser, overføringer (begge sider, sletting og angring), salg av flere mynter enn man har, tolkning av svar
+fra CoinGecko og Binance, budsjetter, lagring (også ødelagte data og full lagring), sikkerhetskopier,
+CSV-eksport og eksempeldata.
 
-**By hand in the browser** (desktop 1024 px and phone 375 px, light and dark mode):
+**For hånd i nettleseren** (PC og mobil 375 px, lyst og mørkt tema):
 
-| Tested | Result |
+| Testet | Resultat |
 |---|---|
-| First visit shows a welcome screen; "Explore with demo data" fills the app | ✅ |
-| Add a transaction; saving without a category shows an error; `1 234,5` is read as 1 234,50 kr | ✅ |
-| A note containing `<b>test</b>` is shown as text, not as HTML | ✅ |
-| Edit a transaction; delete it; undo from the toast and with ⌘Z | ✅ |
-| Filter by month / type / category, search across all months; focus stays in the search box while typing | ✅ |
-| Selecting a category on the overview opens its transactions | ✅ |
-| Chart tooltip, chart ↔ table toggle (the numbers match the overview) | ✅ |
-| Budgets: edit with invalid and valid input, suggestions + undo, past/current/future months | ✅ |
-| Export CSV (correct rows and signed amounts, Excel-friendly), download backup, restore it (invalid rows skipped and reported) | ✅ |
-| Currency and theme settings; delete all data + undo | ✅ |
-| Phone layout: no sideways scrolling, bottom tab bar, dialogs as bottom sheets | ✅ |
+| Ny bankkonto med startsaldo; ny kryptokonto med 0,01 BTC uten oppgitt pris (bruker dagens kurs) | ✅ |
+| «Live»-merket og verdier som oppdateres fra Binance-strømmen | ✅ |
+| Nytt fond med innskutt beløp; innskudd «fra Brukskonto» trekker fra banken; avkastning +10 % stemmer | ✅ |
+| Kjøp av ny mynt (ETH) for 500 kr: antall regnes ut fra live-kursen | ✅ |
+| Salg av mer BTC enn kontoen har gir feilmelding | ✅ |
+| Sletting av bevegelse og angring | ✅ |
+| Eksempeldata med ekte historiske kurser; graf med 366 dager; fordeling og avkastning | ✅ |
+| Forbruk, transaksjoner, budsjett og innstillinger på norsk | ✅ |
+| Ingen side kan rulles sidelengs på mobil; dialogene vises som bunnark | ✅ |
 
-**Bugs found while testing and reviewing the code (all fixed):**
+**Feil som ble funnet under testing og gjennomgang (alle rettet):**
 
-1. The **Delete** button showed in the *Add* dialog. CSS `display: inline-flex` on buttons overrode the HTML
-   `hidden` attribute. Fixed with a global `[hidden] { display: none !important }` rule.
-2. **Negative amounts rounded differently** (`-kr 1,234` in the headline but `kr 1,235 spent` below it),
-   because `Math.round(-1234.5)` is `-1234` in JavaScript. Fixed by rounding halves away from zero; a test
-   now guards it.
-3. **Editing an amount appended to the old one** (`266` → `266300,50`). The amount is now selected when the
-   edit dialog opens, so typing replaces it.
-4. On phones the **add dialog was wider than the screen**: an `<input>` has a default width of about 20
-   characters, which at 28 px is wider than a phone. Fixed in CSS.
-5. The **budget summary** used the wrong currency and said "left to spend" for months that are already over.
-6. The **local server hung at start-up** on some networks (Python's server looks up the computer's host name);
-   `serve.py` skips that lookup.
-7. Small visual issues: a shadow from the hidden "skip to content" link showed in the corner, and the
-   "On track" badge wrapped onto two lines on phones.
-8. Two unit tests first failed because `Intl` puts a non-breaking space between "kr" and the number.
-   The tests now ignore which kind of space is used.
+1. En kryptokonto opprettet uten «Betalt» fikk **0 kr som kjøpspris** fordi kursen ikke var hentet ennå –
+   da ville hele verdien vist som gevinst. Nå hentes kursen før lagring.
+2. **«Live»-merket dukket aldri opp** første gang en mynt ble lagt til, fordi kursstrømmen fortsatt sto som
+   «inaktiv» da siden ble tegnet.
+3. Live-oppdateringen ville **snudd fortegnet på gjelden** i oversikten (funnet ved gjennomgang).
+4. Dialogene kunne gått i **løkke** hvis kurshentingen feilet (funnet ved gjennomgang).
+5. Blinkingen ved kursendringer var **for kraftig** (hele blokker ble farget); nå blinker bare tallet.
+6. Lange antall som `51,6865696 USDT` i oversikten; nå `51,69 USDT` (full presisjon på kontosiden).
 
-## Ideas for next steps
+Fra første versjon:
+7. **Slett**-knappen synlig i «ny transaksjon» (CSS overstyrte `hidden`).
+8. **Negative beløp ble rundet annerledes** (`Math.round(-1234.5)` er `-1234`); nå finnes en test for det.
+9. Ved **redigering ble nytt beløp lagt til bak det gamle**; nå markeres beløpet når dialogen åpnes.
+10. **Dialogen var bredere enn mobilskjermen** (standardbredden til et `<input>`).
+11. **Den lokale serveren hang ved oppstart** på enkelte nettverk (navneoppslag i Python).
 
-- Recurring transactions (rent, salary and subscriptions added automatically each month)
-- Custom categories
-- Savings goals ("new laptop: 4 500 of 12 000 kr")
-- Import transactions from a bank's CSV export
-- Install as an app on the phone and use it offline (PWA)
+## Videre arbeid
+
+- Faste overføringer (f.eks. BSU-sparing den 20. hver måned) som legges inn automatisk
+- Kurser for aksjer og fond (krever en kursleverandør med nøkkel, via en liten server)
+- Sparemål («ny PC: 4 500 av 12 000 kr»)
+- Import av kontoutskrift (CSV) fra banken
+- Installere som app på mobilen og bruke den uten nett (PWA)

@@ -1,4 +1,4 @@
-// Budgets page: a monthly limit per category and how much of it is used.
+// Budsjett: en månedlig grense per kategori og hvor mye av den som er brukt.
 import { budgetMeter, statusBadge } from '../charts.js';
 import { categoriesFor, getCategory } from '../categories.js';
 import { dayOfMonth, daysInMonth, monthLabel } from '../dates.js';
@@ -22,7 +22,7 @@ export function renderBudgets({ state, ui, today, thisMonth }) {
     .sort((a, b) => (spentWithoutBudget.get(b.id) ?? 0) - (spentWithoutBudget.get(a.id) ?? 0));
 
   return html`
-    ${pageHeader('Budgets', { month, thisMonth })}
+    ${pageHeader('Budsjett', { month, thisMonth })}
 
     ${report.rows.length > 0 ? summaryCard(report.total, { month, today, thisMonth, pace, currency, money }) : intro()}
 
@@ -30,8 +30,8 @@ export function renderBudgets({ state, ui, today, thisMonth }) {
       ? html`<section class="card">
           <header class="card-header">
             <div>
-              <h2 class="card-title">Your budgets</h2>
-              <p class="card-subtitle">${pace === null ? `Spending in ${monthLabel(month)}` : 'The line on each bar marks today'}</p>
+              <h2 class="card-title">Dine budsjetter</h2>
+              <p class="card-subtitle">${pace === null ? `Forbruk i ${monthLabel(month).toLowerCase()}` : 'Streken på hver linje viser hvor langt ut i måneden vi er'}</p>
             </div>
           </header>
           <ul class="budget-list">${report.rows.map((row) => budgetRow(row, { currency, pace, money }))}</ul>
@@ -41,11 +41,11 @@ export function renderBudgets({ state, ui, today, thisMonth }) {
     <section class="card">
       <header class="card-header">
         <div>
-          <h2 class="card-title">${report.rows.length > 0 ? 'Without a budget' : 'Categories'}</h2>
-          <p class="card-subtitle">Spending in ${monthLabel(month)}</p>
+          <h2 class="card-title">${report.rows.length > 0 ? 'Uten budsjett' : 'Kategorier'}</h2>
+          <p class="card-subtitle">Forbruk i ${monthLabel(month).toLowerCase()}</p>
         </div>
         <button type="button" class="button button-secondary" id="suggest-budgets" data-action="suggest-budgets">
-          ${icon('sparkle', { size: 18 })} Suggest budgets
+          ${icon('sparkle', { size: 18 })} Foreslå budsjetter
         </button>
       </header>
       ${withoutBudget.length > 0
@@ -54,58 +54,58 @@ export function renderBudgets({ state, ui, today, thisMonth }) {
               const spent = spentWithoutBudget.get(category.id) ?? 0;
               return html`<li class="unbudgeted-row">
                 <span class="cat-name"><span class="cat-icon" aria-hidden="true">${category.icon}</span>${category.name}</span>
-                <span class="muted">${spent > 0 ? `${money(spent)} spent` : 'Nothing spent'}</span>
+                <span class="muted">${spent > 0 ? `${money(spent)} brukt` : 'Ingenting brukt'}</span>
                 <button type="button" class="button button-small button-secondary" id="set-budget-${category.id}"
-                  data-action="edit-budget" data-category="${category.id}">Set budget</button>
+                  data-action="edit-budget" data-category="${category.id}">Sett budsjett</button>
               </li>`;
             })}
           </ul>`
-        : html`<p class="muted-note">Every category has a budget.</p>`}
+        : html`<p class="muted-note">Alle kategoriene har budsjett.</p>`}
     </section>`;
 }
 
 function intro() {
   return html`<section class="card callout-card">
-    <h2 class="card-title">Plan your month</h2>
+    <h2 class="card-title">Planlegg måneden</h2>
     <p>
-      Give a category a monthly limit and Pengeflyt tracks how much of it you've used, warns you at 80%
-      and tells you how much you can spend per day for the rest of the month. Not sure where to start?
-      <strong>Suggest budgets</strong> looks at what you usually spend.
+      Gi en kategori en månedlig grense, så holder Pengeflyt styr på hvor mye du har brukt, varsler deg ved 80 %
+      og forteller hvor mye du kan bruke per dag resten av måneden. Usikker på hvor du skal begynne?
+      <strong>Foreslå budsjetter</strong> ser på hva du pleier å bruke.
     </p>
   </section>`;
 }
 
 function summaryCard(total, { month, today, thisMonth, pace, currency, money }) {
-  let paceNote = '';
+  let paceNote;
   if (month === thisMonth) {
     const day = dayOfMonth(today);
     const days = daysInMonth(month);
     const allowance = dailyAllowance(total.remaining, month, today);
     paceNote =
       total.remaining > 0
-        ? `Day ${day} of ${days}: you can spend about ${money(allowance)} a day for the rest of the month.`
-        : `Day ${day} of ${days}: the budget for this month is used up.`;
+        ? `Dag ${day} av ${days}: du kan bruke rundt ${money(allowance)} per dag resten av måneden.`
+        : `Dag ${day} av ${days}: budsjettet for denne måneden er brukt opp.`;
   } else if (month < thisMonth) {
-    paceNote = total.remaining >= 0 ? `You stayed ${money(total.remaining)} under budget.` : `You went ${money(-total.remaining)} over budget.`;
+    paceNote = total.remaining >= 0 ? `Du holdt deg ${money(total.remaining)} under budsjett.` : `Du gikk ${money(-total.remaining)} over budsjett.`;
   } else {
-    paceNote = "This month hasn't started yet.";
+    paceNote = 'Denne måneden har ikke begynt ennå.';
   }
-  const label = monthLabel(month);
-  let headline = `Left to spend in ${label}`;
-  if (total.remaining < 0) headline = `Over budget in ${label}`;
-  else if (month < thisMonth) headline = `Under budget in ${label}`;
-  else if (month > thisMonth) headline = `Budget for ${label}`;
+  const label = monthLabel(month).toLowerCase();
+  let headline = `Igjen å bruke i ${label}`;
+  if (total.remaining < 0) headline = `Over budsjett i ${label}`;
+  else if (month < thisMonth) headline = `Under budsjett i ${label}`;
+  else if (month > thisMonth) headline = `Budsjett for ${label}`;
 
   return html`<section class="card budget-summary">
     <div class="budget-summary-top">
       <div>
         <p class="hero-label">${headline}</p>
         <p class="summary-value">${money(Math.abs(total.remaining))}</p>
-        <p class="muted">${money(total.spent)} spent of ${money(total.limit)} budgeted</p>
+        <p class="muted">${money(total.spent)} brukt av ${money(total.limit)} budsjettert</p>
       </div>
       ${statusBadge(total.level)}
     </div>
-    ${budgetMeter(total, { label: 'All budgets', currency, pace })}
+    ${budgetMeter(total, { label: 'Alle budsjetter', currency, pace })}
     <p class="pace-note">${paceNote}</p>
   </section>`;
 }
@@ -116,13 +116,13 @@ function budgetRow(row, { currency, pace, money }) {
     <div class="budget-row-head">
       <span class="cat-name"><span class="cat-icon" aria-hidden="true">${emoji}</span>${name}</span>
       <button type="button" class="link-button" id="edit-budget-${row.category}" data-action="edit-budget"
-        data-category="${row.category}" aria-label="Edit budget for ${name}">Edit</button>
+        data-category="${row.category}" aria-label="Endre budsjett for ${name}">Endre</button>
     </div>
     <div class="budget-row-figures">
-      <span><strong>${money(row.spent)}</strong> <span class="muted">of ${money(row.limit)}</span></span>
-      <span class="muted">${row.remaining >= 0 ? `${money(row.remaining)} left` : `${money(-row.remaining)} over`}</span>
+      <span><strong>${money(row.spent)}</strong> <span class="muted">av ${money(row.limit)}</span></span>
+      <span class="muted">${row.remaining >= 0 ? `${money(row.remaining)} igjen` : `${money(-row.remaining)} over`}</span>
     </div>
-    ${budgetMeter(row, { label: `${name} budget`, currency, pace })}
+    ${budgetMeter(row, { label: `Budsjett for ${name}`, currency, pace })}
     ${statusBadge(row.level)}
   </li>`;
 }

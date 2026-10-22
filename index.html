@@ -1,63 +1,211 @@
 <!doctype html>
-<html lang="en">
+<html lang="nb">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Pengeflyt · Personal finance tracker</title>
-  <meta name="description" content="Pengeflyt is a personal finance tracker: log income and expenses, set monthly budgets per category and see where your money goes.">
+  <title>Pengeflyt · Formue og forbruk</title>
+  <meta name="description" content="Pengeflyt samler formuen din – bank, sparing, fond, aksjer og krypto – med live kryptokurser, og holder oversikt over forbruk og budsjetter.">
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="src/app.js"></script>
 </head>
 <body>
-  <a class="skip-link" href="#view">Skip to content</a>
+  <a class="skip-link" href="#view">Hopp til innholdet</a>
 
   <div class="app">
-    <nav class="sidebar" aria-label="Main">
-      <a class="brand" href="#/dashboard">
+    <nav class="sidebar" aria-label="Hovedmeny">
+      <a class="brand" href="#/formue">
         <svg class="logo" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
           <rect width="32" height="32" rx="9" fill="#256abf"/>
           <path d="M6.5 20c3.8 0 5-8 9.5-8s5.7 6.5 9.5 6.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
         </svg>
         <span>Pengeflyt</span>
       </a>
-      <button type="button" class="button button-primary sidebar-add" data-action="add-transaction">
-        <span data-icon="plus"></span>Add transaction
+      <button type="button" class="button button-primary sidebar-add" data-action="quick-add">
+        <span data-icon="plus"></span><span data-slot="quick-add-label">Registrer</span>
       </button>
-      <a class="nav-link" href="#/dashboard" data-route="dashboard"><span data-icon="overview"></span><span>Overview</span></a>
-      <a class="nav-link" href="#/transactions" data-route="transactions"><span data-icon="list"></span><span>Transactions</span></a>
-      <a class="nav-link" href="#/budgets" data-route="budgets"><span data-icon="target"></span><span>Budgets</span></a>
-      <a class="nav-link" href="#/settings" data-route="settings"><span data-icon="settings"></span><span>Settings</span></a>
-      <p class="sidebar-foot"><span data-icon="lock"></span>Your data stays in this browser.</p>
+      <a class="nav-link" href="#/formue" data-route="networth"><span data-icon="wallet"></span><span>Formue</span></a>
+      <a class="nav-link" href="#/forbruk" data-route="spending"><span data-icon="overview"></span><span>Forbruk</span></a>
+      <a class="nav-link" href="#/transaksjoner" data-route="transactions"><span data-icon="list"></span><span>Transaksjoner</span></a>
+      <a class="nav-link" href="#/budsjett" data-route="budgets"><span data-icon="target"></span><span>Budsjett</span></a>
+      <a class="nav-link" href="#/innstillinger" data-route="settings"><span data-icon="settings"></span><span>Innstillinger</span></a>
+      <p class="sidebar-foot"><span data-icon="lock"></span>Dataene dine blir i denne nettleseren.</p>
     </nav>
 
     <main id="view" class="view" tabindex="-1">
-      <p class="loading">Loading…</p>
-      <noscript>Pengeflyt needs JavaScript to run.</noscript>
+      <p class="loading">Laster …</p>
+      <noscript>Pengeflyt trenger JavaScript for å kjøre.</noscript>
     </main>
   </div>
 
-  <button type="button" class="fab" data-action="add-transaction" aria-label="Add transaction"><span data-icon="plus"></span></button>
+  <button type="button" class="fab" data-action="quick-add" aria-label="Registrer"><span data-icon="plus"></span></button>
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <input type="file" id="import-file" accept=".json,application/json" hidden>
 
-  <!-- Add / edit transaction -->
+  <datalist id="institutions"></datalist>
+
+  <!-- Ny / endre konto -->
+  <dialog id="account-dialog" class="sheet" aria-labelledby="account-dialog-title">
+    <form method="dialog" novalidate>
+      <header class="sheet-header">
+        <h2 id="account-dialog-title">Ny konto</h2>
+        <button type="button" class="icon-button" data-close aria-label="Lukk"><span data-icon="close"></span></button>
+      </header>
+      <div class="sheet-body">
+        <fieldset class="field">
+          <legend>Type</legend>
+          <div class="category-grid type-grid" data-slot="types"></div>
+          <p class="field-error" id="account-type-error" hidden></p>
+        </fieldset>
+
+        <div class="field-row field-row-even">
+          <div class="field">
+            <label for="account-name">Navn</label>
+            <input class="input" id="account-name" maxlength="40" autocomplete="off" aria-describedby="account-name-error">
+            <p class="field-error" id="account-name-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="account-institution">Bank eller plattform <span class="optional">(valgfritt)</span></label>
+            <input class="input" id="account-institution" list="institutions" maxlength="40" autocomplete="off" placeholder="F.eks. DNB, Nordnet, Firi">
+            <p class="field-error" id="account-institution-error" hidden></p>
+          </div>
+        </div>
+
+        <div class="field" data-for="opening">
+          <label for="account-amount" data-slot="amount-label">Saldo nå</label>
+          <div class="amount-input">
+            <input id="account-amount" inputmode="decimal" autocomplete="off" placeholder="0" aria-describedby="account-amount-error">
+            <span class="amount-currency" data-slot="currency">kr</span>
+          </div>
+          <p class="field-error" id="account-amount-error" hidden></p>
+        </div>
+
+        <div class="field" data-for="invested">
+          <label for="account-invested">Hvorav satt inn av deg <span class="optional">(valgfritt)</span></label>
+          <div class="amount-input amount-input-small">
+            <input id="account-invested" inputmode="decimal" autocomplete="off" placeholder="Samme som verdien" aria-describedby="account-invested-hint account-invested-error">
+            <span class="amount-currency" data-slot="currency">kr</span>
+          </div>
+          <p class="field-hint" id="account-invested-hint">Brukes til å regne ut avkastningen. Står det tomt, regnes all verdien som innskudd.</p>
+          <p class="field-error" id="account-invested-error" hidden></p>
+        </div>
+
+        <div class="field-row field-row-even" data-for="crypto">
+          <div class="field">
+            <label for="account-asset">Første mynt</label>
+            <select class="input" id="account-asset"></select>
+          </div>
+          <div class="field">
+            <label for="account-quantity">Antall <span class="optional">(valgfritt)</span></label>
+            <input class="input" id="account-quantity" inputmode="decimal" autocomplete="off" placeholder="F.eks. 0,005" aria-describedby="account-quantity-error">
+            <p class="field-error" id="account-quantity-error" hidden></p>
+          </div>
+        </div>
+        <div class="field" data-for="crypto">
+          <label for="account-paid">Betalt totalt <span class="optional">(valgfritt)</span></label>
+          <div class="amount-input amount-input-small">
+            <input id="account-paid" inputmode="decimal" autocomplete="off" placeholder="0" aria-describedby="account-crypto-hint account-paid-error">
+            <span class="amount-currency" data-slot="currency">kr</span>
+          </div>
+          <p class="field-hint" id="account-crypto-hint" data-slot="crypto-hint"></p>
+          <p class="field-error" id="account-paid-error" hidden></p>
+        </div>
+      </div>
+      <footer class="sheet-footer">
+        <button type="button" class="button button-ghost-danger" data-delete hidden><span data-icon="trash"></span>Slett konto</button>
+        <span class="spacer"></span>
+        <button type="button" class="button button-secondary" data-close>Avbryt</button>
+        <button type="submit" class="button button-primary">Lagre</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Registrer en bevegelse: innskudd, uttak, ny verdi, kjøp eller salg -->
+  <dialog id="move-dialog" class="sheet" aria-labelledby="move-dialog-title">
+    <form method="dialog" novalidate>
+      <header class="sheet-header">
+        <h2 id="move-dialog-title">Registrer</h2>
+        <button type="button" class="icon-button" data-close aria-label="Lukk"><span data-icon="close"></span></button>
+      </header>
+      <div class="sheet-body">
+        <div class="field">
+          <label for="move-account">Konto</label>
+          <select class="input" id="move-account"></select>
+          <p class="field-error" id="move-account-error" hidden></p>
+        </div>
+
+        <fieldset class="segmented segmented-wide" data-slot="kinds"></fieldset>
+        <p class="field-error" id="move-kind-error" hidden></p>
+
+        <div class="field-row field-row-even">
+          <div class="field" data-for="asset">
+            <label for="move-asset">Mynt</label>
+            <select class="input" id="move-asset"></select>
+            <p class="field-error" id="move-asset-error" hidden></p>
+          </div>
+          <div class="field" data-for="quantity">
+            <label for="move-quantity">Antall</label>
+            <input class="input" id="move-quantity" inputmode="decimal" autocomplete="off" placeholder="F.eks. 0,005" aria-describedby="move-quantity-hint move-quantity-error">
+            <p class="field-error" id="move-quantity-error" hidden></p>
+          </div>
+        </div>
+        <p class="field-hint" id="move-quantity-hint" data-for="quantity" data-slot="quantity-hint"></p>
+
+        <div class="field">
+          <label for="move-amount" data-slot="amount-label">Beløp</label>
+          <div class="amount-input">
+            <input id="move-amount" inputmode="decimal" autocomplete="off" placeholder="0" aria-describedby="move-amount-hint move-amount-error">
+            <span class="amount-currency" data-slot="currency">kr</span>
+          </div>
+          <p class="field-hint" id="move-amount-hint" data-slot="amount-hint"></p>
+          <p class="field-error" id="move-amount-error" hidden></p>
+        </div>
+
+        <div class="field" data-for="counter">
+          <label for="move-counter" data-slot="counter-label">Pengene kom fra</label>
+          <select class="input" id="move-counter" aria-describedby="move-counter-hint move-counter-error"></select>
+          <p class="field-hint" id="move-counter-hint">Velger du en konto, flyttes beløpet dit (eller derfra) også, så formuen ikke telles dobbelt.</p>
+          <p class="field-error" id="move-counter-error" hidden></p>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="move-date">Dato</label>
+            <input class="input" id="move-date" type="date" aria-describedby="move-date-error">
+            <p class="field-error" id="move-date-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="move-note">Notat <span class="optional">(valgfritt)</span></label>
+            <input class="input" id="move-note" maxlength="120" autocomplete="off" placeholder="F.eks. Fast sparing" aria-describedby="move-note-error">
+            <p class="field-error" id="move-note-error" hidden></p>
+          </div>
+        </div>
+      </div>
+      <footer class="sheet-footer">
+        <span class="spacer"></span>
+        <button type="button" class="button button-secondary" data-close>Avbryt</button>
+        <button type="submit" class="button button-primary">Lagre</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Ny / endre transaksjon -->
   <dialog id="tx-dialog" class="sheet" aria-labelledby="tx-dialog-title">
     <form method="dialog" novalidate>
       <header class="sheet-header">
-        <h2 id="tx-dialog-title">Add transaction</h2>
-        <button type="button" class="icon-button" data-close aria-label="Close"><span data-icon="close"></span></button>
+        <h2 id="tx-dialog-title">Ny transaksjon</h2>
+        <button type="button" class="icon-button" data-close aria-label="Lukk"><span data-icon="close"></span></button>
       </header>
       <div class="sheet-body">
         <fieldset class="segmented segmented-wide">
           <legend class="visually-hidden">Type</legend>
-          <label><input type="radio" name="type" value="expense" checked><span>Expense</span></label>
-          <label><input type="radio" name="type" value="income"><span>Income</span></label>
+          <label><input type="radio" name="type" value="expense" checked><span>Utgift</span></label>
+          <label><input type="radio" name="type" value="income"><span>Inntekt</span></label>
         </fieldset>
 
         <div class="field">
-          <label for="tx-amount">Amount</label>
+          <label for="tx-amount">Beløp</label>
           <div class="amount-input">
             <input id="tx-amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="0" aria-describedby="tx-amount-error">
             <span class="amount-currency" data-slot="currency">kr</span>
@@ -66,43 +214,43 @@
         </div>
 
         <fieldset class="field">
-          <legend>Category</legend>
+          <legend>Kategori</legend>
           <div class="category-grid" data-slot="categories"></div>
           <p class="field-error" id="tx-category-error" hidden></p>
         </fieldset>
 
         <div class="field-row">
           <div class="field">
-            <label for="tx-date">Date</label>
+            <label for="tx-date">Dato</label>
             <input class="input" id="tx-date" name="date" type="date" aria-describedby="tx-date-error">
             <p class="field-error" id="tx-date-error" hidden></p>
           </div>
           <div class="field">
-            <label for="tx-note">Note <span class="optional">(optional)</span></label>
-            <input class="input" id="tx-note" name="note" maxlength="120" autocomplete="off" placeholder="e.g. Weekly shop" aria-describedby="tx-note-error">
+            <label for="tx-note">Notat <span class="optional">(valgfritt)</span></label>
+            <input class="input" id="tx-note" name="note" maxlength="120" autocomplete="off" placeholder="F.eks. Ukeshandel" aria-describedby="tx-note-error">
             <p class="field-error" id="tx-note-error" hidden></p>
           </div>
         </div>
       </div>
       <footer class="sheet-footer">
-        <button type="button" class="button button-ghost-danger" data-delete hidden><span data-icon="trash"></span>Delete</button>
+        <button type="button" class="button button-ghost-danger" data-delete hidden><span data-icon="trash"></span>Slett</button>
         <span class="spacer"></span>
-        <button type="button" class="button button-secondary" data-close>Cancel</button>
-        <button type="submit" class="button button-primary">Save</button>
+        <button type="button" class="button button-secondary" data-close>Avbryt</button>
+        <button type="submit" class="button button-primary">Lagre</button>
       </footer>
     </form>
   </dialog>
 
-  <!-- Set a monthly budget for one category -->
+  <!-- Månedlig budsjett for én kategori -->
   <dialog id="budget-dialog" class="sheet sheet-small" aria-labelledby="budget-dialog-title">
     <form method="dialog" novalidate>
       <header class="sheet-header">
-        <h2 id="budget-dialog-title">Budget</h2>
-        <button type="button" class="icon-button" data-close aria-label="Close"><span data-icon="close"></span></button>
+        <h2 id="budget-dialog-title">Budsjett</h2>
+        <button type="button" class="icon-button" data-close aria-label="Lukk"><span data-icon="close"></span></button>
       </header>
       <div class="sheet-body">
         <div class="field">
-          <label for="budget-amount">Monthly budget</label>
+          <label for="budget-amount">Månedlig budsjett</label>
           <div class="amount-input">
             <input id="budget-amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="0" aria-describedby="budget-hint budget-amount-error">
             <span class="amount-currency" data-slot="currency">kr</span>
@@ -115,15 +263,15 @@
         </p>
       </div>
       <footer class="sheet-footer">
-        <button type="button" class="button button-ghost-danger" data-remove hidden>Remove budget</button>
+        <button type="button" class="button button-ghost-danger" data-remove hidden>Fjern budsjett</button>
         <span class="spacer"></span>
-        <button type="button" class="button button-secondary" data-close>Cancel</button>
-        <button type="submit" class="button button-primary">Save</button>
+        <button type="button" class="button button-secondary" data-close>Avbryt</button>
+        <button type="submit" class="button button-primary">Lagre</button>
       </footer>
     </form>
   </dialog>
 
-  <!-- Yes/no questions -->
+  <!-- Ja/nei-spørsmål -->
   <dialog id="confirm-dialog" class="sheet sheet-small" aria-labelledby="confirm-title">
     <form method="dialog">
       <div class="sheet-body confirm-body">
@@ -132,20 +280,20 @@
       </div>
       <footer class="sheet-footer">
         <span class="spacer"></span>
-        <button value="cancel" class="button button-secondary">Cancel</button>
+        <button value="cancel" class="button button-secondary">Avbryt</button>
         <button value="confirm" class="button button-primary" data-slot="confirm">OK</button>
       </footer>
     </form>
   </dialog>
 
   <script>
-    // Browsers refuse to load the app's JavaScript modules from a file:// address,
-    // so explain how to start it properly instead of showing a blank page.
+    // Nettlesere nekter å laste appens JavaScript-moduler fra en fil (file://),
+    // så forklar hvordan den startes i stedet for å vise en tom side.
     if (location.protocol === 'file:') {
       document.getElementById('view').innerHTML =
-        '<div class="file-warning"><h1>Almost there!</h1>' +
-        '<p>Browsers block this app when it is opened directly as a file. Start the small local web server from the project folder:</p>' +
-        '<pre>python3 serve.py</pre><p>…and open <a href="http://localhost:8000">http://localhost:8000</a>.</p></div>';
+        '<div class="file-warning"><h1>Nesten der!</h1>' +
+        '<p>Nettleseren blokkerer appen når den åpnes direkte som en fil. Start den lille webserveren fra prosjektmappen:</p>' +
+        '<pre>python3 serve.py</pre><p>…og åpne <a href="http://localhost:8000">http://localhost:8000</a>.</p></div>';
     }
   </script>
 </body>

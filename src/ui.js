@@ -1,6 +1,6 @@
-// Browser-only helpers: toast messages, a confirm dialog and file downloads.
+// Hjelpere for nettleseren: korte meldinger nederst (toasts), en bekreftelsesdialog og nedlasting av filer.
 
-/** Shows a short message at the bottom of the screen, optionally with an action such as "Undo". */
+/** Viser en kort melding nederst på skjermen, eventuelt med en knapp som "Angre". */
 export function showToast(message, { actionLabel, onAction, duration = 6000 } = {}) {
   const region = document.getElementById('toasts');
   const toast = document.createElement('div');
@@ -34,7 +34,7 @@ export function showToast(message, { actionLabel, onAction, duration = 6000 } = 
   return dismiss;
 }
 
-/** Asks a yes/no question in a dialog. Resolves to true when the user confirms. */
+/** Stiller et ja/nei-spørsmål i en dialog. Gir true når brukeren bekrefter. */
 export function confirmDialog({ title, message, confirmLabel = 'OK', danger = false }) {
   const dialog = document.getElementById('confirm-dialog');
   dialog.querySelector('[data-slot="title"]').textContent = title;

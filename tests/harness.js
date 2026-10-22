@@ -1,5 +1,5 @@
-// A tiny test runner with no dependencies. Test files call test(...) to register
-// tests; tests/index.html (in a browser) or tests/cli.js (in a terminal) runs them.
+// En liten testkjører uten avhengigheter. Testfilene kaller test(...) for å registrere
+// tester; tests/index.html (i nettleseren) eller tests/cli.js (i terminalen) kjører dem.
 
 const tests = [];
 
@@ -41,7 +41,7 @@ function show(value) {
   }
 }
 
-/** Runs every registered test and returns [{ name, ok, error }]. */
+/** Kjører alle registrerte tester og gir [{ name, ok, error }]. */
 export async function run() {
   const results = [];
   for (const { name, fn } of tests) {

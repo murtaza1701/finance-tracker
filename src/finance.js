@@ -1,9 +1,9 @@
-// Calculations on transactions. Nothing in here touches the page or storage,
-// which keeps these functions easy to unit test (see tests/finance.test.js).
-// A transaction looks like { id, type: 'income' | 'expense', amount (øre), category, date, note }.
+// Beregninger på transaksjoner (forbruk). Ingenting her rører siden eller lagringen,
+// så funksjonene er enkle å teste (se tests/finance.test.js).
+// En transaksjon: { id, type: 'income' | 'expense', amount (øre), category, date, note }.
 import { dayOfMonth, daysInMonth, monthOf, shiftMonth } from './dates.js';
 
-export const WARNING_RATIO = 0.8; // a budget is "near the limit" from 80 % used
+export const WARNING_RATIO = 0.8; // et budsjett er "nær grensen" fra 80 % brukt
 
 export function inMonth(transactions, month) {
   return transactions.filter((t) => monthOf(t.date) === month);
@@ -24,13 +24,13 @@ export function monthSummary(transactions, month) {
   return summarize(inMonth(transactions, month));
 }
 
-/** Change from `previous` to `current` as a fraction (0.25 = +25 %), or null when there is nothing to compare with. */
+/** Endring fra `previous` til `current` som brøk (0,25 = +25 %), eller null når det ikke er noe å sammenligne med. */
 export function percentChange(current, previous) {
   if (!previous) return null;
   return (current - previous) / Math.abs(previous);
 }
 
-/** Expenses per category in a month, biggest first, with each category's share of the total. */
+/** Utgifter per kategori i en måned, størst først, med hver kategoris andel av totalen. */
 export function spendingByCategory(transactions, month) {
   const totals = new Map();
   for (const t of inMonth(transactions, month)) {
@@ -42,7 +42,7 @@ export function spendingByCategory(transactions, month) {
     .sort((a, b) => b.amount - a.amount || a.category.localeCompare(b.category));
 }
 
-/** Income, expenses and net for `count` months ending with `endMonth` (months without data included). */
+/** Inntekter, utgifter og netto for `count` måneder til og med `endMonth` (også måneder uten data). */
 export function monthlySeries(transactions, endMonth, count = 6) {
   const series = [];
   for (let i = count - 1; i >= 0; i--) {
@@ -65,8 +65,8 @@ export function budgetLevel(spent, limit) {
 }
 
 /**
- * Spending against the monthly budget of every budgeted category (most used first),
- * the totals for all budgets, and spending in categories that have no budget.
+ * Forbruk mot månedsbudsjettet for hver kategori med budsjett (mest brukt først),
+ * summen for alle budsjettene og forbruk i kategorier uten budsjett.
  */
 export function budgetReport(transactions, budgets, month) {
   const spent = new Map(spendingByCategory(transactions, month).map((row) => [row.category, row.amount]));
@@ -92,7 +92,7 @@ export function budgetReport(transactions, budgets, month) {
   return { rows, total, unbudgeted };
 }
 
-/** How far through `month` we are on `today`: 0 before it starts, 1 once it is over. */
+/** Hvor langt ut i `month` vi er på `today`: 0 før den starter, 1 når den er over. */
 export function monthProgress(month, today) {
   const current = monthOf(today);
   if (month < current) return 1;
@@ -100,7 +100,7 @@ export function monthProgress(month, today) {
   return dayOfMonth(today) / daysInMonth(month);
 }
 
-/** How much can be spent per day for the rest of the month (today included), in whole kroner. */
+/** Hvor mye som kan brukes per dag resten av måneden (i dag medregnet), i hele kroner. */
 export function dailyAllowance(remaining, month, today) {
   if (monthOf(today) !== month || remaining <= 0) return 0;
   const daysLeft = daysInMonth(month) - dayOfMonth(today) + 1;
@@ -108,9 +108,9 @@ export function dailyAllowance(remaining, month, today) {
 }
 
 /**
- * Suggests a monthly budget per category: the average spending in the `lookback`
- * months before `month` (only counting months with any data), rounded up to a
- * tidy number – the nearest 50 below 1 000, otherwise the nearest 100.
+ * Foreslår et månedsbudsjett per kategori: snittforbruket de `lookback` månedene før
+ * `month` (bare måneder med data teller), rundet opp til et pent tall –
+ * nærmeste 50 under 1 000, ellers nærmeste 100.
  */
 export function suggestBudgets(transactions, month, lookback = 3) {
   const months = new Set(Array.from({ length: lookback }, (_, i) => shiftMonth(month, -(i + 1))));
@@ -135,7 +135,7 @@ export function byNewest(a, b) {
   return b.date.localeCompare(a.date) || String(b.createdAt).localeCompare(String(a.createdAt));
 }
 
-/** Applies the transaction list filters and sorts the result newest first. */
+/** Bruker filtrene i transaksjonslisten og sorterer nyeste først. */
 export function filterTransactions(transactions, { month = 'all', type = 'all', category = 'all', query = '' } = {}, nameOf = (id) => id) {
   const needle = query.trim().toLowerCase();
   return transactions
@@ -149,7 +149,7 @@ export function filterTransactions(transactions, { month = 'all', type = 'all', 
     .sort(byNewest);
 }
 
-/** Groups an already sorted list by date, with each day's net total. */
+/** Grupperer en allerede sortert liste per dato, med netto for hver dag. */
 export function groupByDate(transactions) {
   const groups = [];
   for (const t of transactions) {
@@ -164,7 +164,7 @@ export function groupByDate(transactions) {
   return groups;
 }
 
-/** Every month that has transactions, newest first. */
+/** Alle måneder som har transaksjoner, nyeste først. */
 export function monthsWithData(transactions) {
   return [...new Set(transactions.map((t) => monthOf(t.date)))].sort().reverse();
 }

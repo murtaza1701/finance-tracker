@@ -1,7 +1,7 @@
-// Safe HTML templates.
-// Views are written as html`<p>${note}</p>`: every ${value} is escaped unless it is
-// itself an html`` template or raw(), so text typed by the user (like a transaction
-// note) can never inject markup or scripts into the page.
+// Trygge HTML-maler.
+// Sidene skrives som html`<p>${note}</p>`: hver ${verdi} blir "escapet" med mindre den selv
+// er en html``-mal eller raw(), så tekst brukeren skriver (f.eks. et notat) aldri kan
+// legge inn markup eller skript på siden.
 
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -19,7 +19,7 @@ class SafeHtml {
   }
 }
 
-/** Marks a string as trusted HTML. Only use it for markup written in this code base (e.g. icons). */
+/** Merker tekst som trygg HTML. Bruk den bare for markup skrevet i denne koden (f.eks. ikoner). */
 export function raw(text) {
   return new SafeHtml(String(text));
 }

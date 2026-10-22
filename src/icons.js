@@ -1,7 +1,14 @@
-// Simple line icons (24×24, drawn with the current text color).
+// Enkle strekikoner (24×24, tegnet med gjeldende tekstfarge).
 import { raw } from './html.js';
 
 const PATHS = {
+  wallet:
+    '<path d="M4 7.5V6a2 2 0 0 1 2-2h11v3.5"/><rect x="3" y="7.5" width="18" height="12.5" rx="2.5"/>' +
+    '<path d="M16.5 13.75h.01" stroke-width="3"/>',
+  'arrow-left': '<path d="M19 12H5M11 18l-6-6 6-6"/>',
+  refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+  pencil: '<path d="M4 20h4L19 9a2.83 2.83 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  swap: '<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>',
   overview:
     '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/>' +
     '<rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
@@ -34,7 +41,7 @@ export function icon(name, { size = 20 } = {}) {
   );
 }
 
-/** The Pengeflyt logo: a wave for money flowing in and out. */
+/** Pengeflyt-logoen: en bølge for penger som flyter inn og ut. */
 export function logo(size = 32) {
   return raw(
     `<svg class="logo" width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true" focusable="false">` +

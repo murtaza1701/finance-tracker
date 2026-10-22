@@ -1,4 +1,4 @@
-// Transactions page: every transaction, grouped by day, with filters and search.
+// Transaksjoner: alle inntekter og utgifter, gruppert per dag, med filtre og søk.
 import { CATEGORIES, categoriesFor, getCategory } from '../categories.js';
 import { dayLabel, monthLabel } from '../dates.js';
 import { filterTransactions, groupByDate, monthsWithData, summarize } from '../finance.js';
@@ -8,9 +8,9 @@ import { formatMoney } from '../money.js';
 import { emptyState, pageHeader, transactionRow } from './shared.js';
 
 const TYPES = [
-  ['all', 'All'],
-  ['expense', 'Expenses'],
-  ['income', 'Income'],
+  ['all', 'Alle'],
+  ['expense', 'Utgifter'],
+  ['income', 'Inntekter'],
 ];
 
 export function renderTransactions({ state, ui, today, thisMonth }) {
@@ -19,15 +19,15 @@ export function renderTransactions({ state, ui, today, thisMonth }) {
   const filters = ui.filters;
 
   if (transactions.length === 0) {
-    return html`${pageHeader('Transactions')}
+    return html`${pageHeader('Transaksjoner')}
       <section class="card">
         ${emptyState({
           emoji: '🧾',
-          title: 'No transactions yet',
-          text: 'Add your first income or expense – it only takes a few seconds.',
+          title: 'Ingen transaksjoner ennå',
+          text: 'Legg inn din første inntekt eller utgift – det tar bare noen sekunder.',
           actions: html`
-            <button type="button" class="button button-primary" data-action="add-transaction">${icon('plus', { size: 18 })} Add transaction</button>
-            <button type="button" class="button button-secondary" data-action="load-demo">Load demo data</button>`,
+            <button type="button" class="button button-primary" data-action="add-transaction">${icon('plus', { size: 18 })} Ny transaksjon</button>
+            <button type="button" class="button button-secondary" data-action="load-demo">Prøv med eksempeldata</button>`,
         })}
       </section>`;
   }
@@ -43,15 +43,15 @@ export function renderTransactions({ state, ui, today, thisMonth }) {
   const isFiltered = filters.type !== 'all' || filters.category !== 'all' || filters.query.trim() !== '';
 
   return html`
-    ${pageHeader('Transactions', {
+    ${pageHeader('Transaksjoner', {
       actions: html`<button type="button" class="button button-secondary" data-action="export-csv" ${list.length ? '' : 'disabled'}>
-        ${icon('download', { size: 18 })} Export CSV</button>`,
+        ${icon('download', { size: 18 })} Eksporter CSV</button>`,
     })}
 
     <div class="filters" role="search">
-      <label class="visually-hidden" for="filter-month">Month</label>
+      <label class="visually-hidden" for="filter-month">Måned</label>
       <select class="input" id="filter-month" data-filter="month">
-        <option value="all" ${filters.month === 'all' ? 'selected' : ''}>All time</option>
+        <option value="all" ${filters.month === 'all' ? 'selected' : ''}>Hele perioden</option>
         ${months.map((month) => html`<option value="${month}" ${month === filters.month ? 'selected' : ''}>${monthLabel(month)}</option>`)}
       </select>
 
@@ -65,25 +65,25 @@ export function renderTransactions({ state, ui, today, thisMonth }) {
         )}
       </fieldset>
 
-      <label class="visually-hidden" for="filter-category">Category</label>
+      <label class="visually-hidden" for="filter-category">Kategori</label>
       <select class="input" id="filter-category" data-filter="category">
-        <option value="all">All categories</option>
+        <option value="all">Alle kategorier</option>
         ${categories.map((c) => html`<option value="${c.id}" ${c.id === filters.category ? 'selected' : ''}>${c.icon} ${c.name}</option>`)}
       </select>
 
       <div class="search">
         ${icon('search', { size: 18 })}
-        <label class="visually-hidden" for="filter-query">Search</label>
+        <label class="visually-hidden" for="filter-query">Søk</label>
         <input class="input" type="search" id="filter-query" data-filter="query" value="${filters.query}"
-          placeholder="Search notes and categories" autocomplete="off">
+          placeholder="Søk i notater og kategorier" autocomplete="off">
       </div>
     </div>
 
     <p class="list-summary" aria-live="polite">
-      <span>${list.length} ${list.length === 1 ? 'transaction' : 'transactions'}</span>
-      <span>In <strong>${formatMoney(totals.income, currency)}</strong></span>
-      <span>Out <strong>${formatMoney(totals.expense, currency)}</strong></span>
-      ${isFiltered ? html`<button type="button" class="link-button" data-action="clear-filters">Clear filters</button>` : ''}
+      <span>${list.length} ${list.length === 1 ? 'transaksjon' : 'transaksjoner'}</span>
+      <span>Inn <strong>${formatMoney(totals.income, currency)}</strong></span>
+      <span>Ut <strong>${formatMoney(totals.expense, currency)}</strong></span>
+      ${isFiltered ? html`<button type="button" class="link-button" data-action="clear-filters">Nullstill filtre</button>` : ''}
     </p>
 
     ${list.length > 0
@@ -101,11 +101,11 @@ export function renderTransactions({ state, ui, today, thisMonth }) {
       : html`<section class="card">
           ${emptyState({
             emoji: '🔍',
-            title: 'Nothing found',
-            text: isFiltered ? 'No transactions match these filters.' : `No transactions in ${monthLabel(filters.month)}.`,
+            title: 'Fant ingenting',
+            text: isFiltered ? 'Ingen transaksjoner passer med filtrene.' : `Ingen transaksjoner i ${monthLabel(filters.month).toLowerCase()}.`,
             actions: isFiltered
-              ? html`<button type="button" class="button button-secondary" data-action="clear-filters">Clear filters</button>`
-              : html`<button type="button" class="button button-primary" data-action="add-transaction">${icon('plus', { size: 18 })} Add transaction</button>`,
+              ? html`<button type="button" class="button button-secondary" data-action="clear-filters">Nullstill filtre</button>`
+              : html`<button type="button" class="button button-primary" data-action="add-transaction">${icon('plus', { size: 18 })} Ny transaksjon</button>`,
           })}
         </section>`}`;
 }

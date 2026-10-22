@@ -1,34 +1,34 @@
-// Built-in categories. The id is what gets saved; the name and icon are for display.
+// Faste kategorier for forbruk. Id-en er det som lagres; navn og ikon er bare for visning.
 
 export const CATEGORIES = [
-  { id: 'housing', type: 'expense', name: 'Housing', icon: '🏠' },
-  { id: 'groceries', type: 'expense', name: 'Groceries', icon: '🛒' },
-  { id: 'dining', type: 'expense', name: 'Eating out', icon: '🍕' },
+  { id: 'housing', type: 'expense', name: 'Bolig', icon: '🏠' },
+  { id: 'groceries', type: 'expense', name: 'Dagligvarer', icon: '🛒' },
+  { id: 'dining', type: 'expense', name: 'Spise ute', icon: '🍕' },
   { id: 'transport', type: 'expense', name: 'Transport', icon: '🚌' },
-  { id: 'bills', type: 'expense', name: 'Bills & phone', icon: '💡' },
-  { id: 'subscriptions', type: 'expense', name: 'Subscriptions', icon: '📺' },
+  { id: 'bills', type: 'expense', name: 'Regninger og mobil', icon: '💡' },
+  { id: 'subscriptions', type: 'expense', name: 'Abonnementer', icon: '📺' },
   { id: 'shopping', type: 'expense', name: 'Shopping', icon: '🛍️' },
-  { id: 'health', type: 'expense', name: 'Health & fitness', icon: '💪' },
-  { id: 'fun', type: 'expense', name: 'Fun & social', icon: '🎉' },
-  { id: 'education', type: 'expense', name: 'Education', icon: '📚' },
-  { id: 'travel', type: 'expense', name: 'Travel', icon: '✈️' },
-  { id: 'other-expense', type: 'expense', name: 'Other', icon: '📦' },
-  { id: 'student-support', type: 'income', name: 'Student loan & grant', icon: '🎓' },
-  { id: 'salary', type: 'income', name: 'Salary', icon: '💼' },
-  { id: 'gifts', type: 'income', name: 'Gifts', icon: '🎁' },
-  { id: 'refunds', type: 'income', name: 'Refunds', icon: '↩️' },
-  { id: 'other-income', type: 'income', name: 'Other income', icon: '💰' },
+  { id: 'health', type: 'expense', name: 'Helse og trening', icon: '💪' },
+  { id: 'fun', type: 'expense', name: 'Fritid og sosialt', icon: '🎉' },
+  { id: 'education', type: 'expense', name: 'Studier', icon: '📚' },
+  { id: 'travel', type: 'expense', name: 'Reise', icon: '✈️' },
+  { id: 'other-expense', type: 'expense', name: 'Annet', icon: '📦' },
+  { id: 'student-support', type: 'income', name: 'Studielån og stipend', icon: '🎓' },
+  { id: 'salary', type: 'income', name: 'Lønn', icon: '💼' },
+  { id: 'gifts', type: 'income', name: 'Gaver', icon: '🎁' },
+  { id: 'refunds', type: 'income', name: 'Refusjoner', icon: '↩️' },
+  { id: 'other-income', type: 'income', name: 'Andre inntekter', icon: '💰' },
 ];
 
 const byId = new Map(CATEGORIES.map((category) => [category.id, category]));
-const UNKNOWN = { id: 'unknown', type: 'expense', name: 'Unknown', icon: '❔' };
+const UNKNOWN = { id: 'unknown', type: 'expense', name: 'Ukjent', icon: '❔' };
 
-/** The category with this id, or null if there is none. */
+/** Kategorien med denne id-en, eller null. */
 export function findCategory(id) {
   return byId.get(id) ?? null;
 }
 
-/** Like findCategory, but falls back to an "Unknown" category so the UI can always show something. */
+/** Som findCategory, men gir "Ukjent" i stedet for null, så noe alltid kan vises. */
 export function getCategory(id) {
   return byId.get(id) ?? UNKNOWN;
 }

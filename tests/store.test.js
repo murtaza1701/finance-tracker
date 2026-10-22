@@ -164,3 +164,120 @@ test('replaceAll and clearAll (clearAll keeps the settings)', () => {
   assertDeepEqual(state.budgets, {});
   assertEqual(state.settings.currency, 'SEK');
 });
+
+// ---------- Kontoer og bevegelser ----------
+
+const today = '2026-10-22';
+
+function storeWithAccounts() {
+  const store = createStore(memoryStorage());
+  const bank = store.addAccount({ name: 'Brukskonto', type: 'bank', institution: 'DNB' }, { amount: 1_000_000, date: '2026-10-01' }).account;
+  const fund = store.addAccount({ name: 'Indeksfond', type: 'fund', institution: 'Nordnet' }, { amount: 2_000_000, invested: 1_800_000, date: '2026-10-01' }).account;
+  const firi = store.addAccount({ name: 'Firi', type: 'crypto', institution: 'Firi' }, { asset: 'BTC', quantity: 0.01, amount: 700_000, date: '2026-10-01' }).account;
+  const loan = store.addAccount({ name: 'Studielån', type: 'loan', institution: 'Lånekassen' }, { amount: 5_000_000, date: '2026-10-01' }).account;
+  return { store, bank, fund, firi, loan };
+}
+
+test('addAccount saves the account with its starting value as the first movement', () => {
+  const { store, fund, firi } = storeWithAccounts();
+  const { accounts, movements } = store.getState();
+  assertEqual(accounts.length, 4);
+  const opening = movements.find((m) => m.accountId === fund.id);
+  assertEqual(opening.kind, 'opening');
+  assertEqual(opening.invested, 1_800_000);
+  const firstBuy = movements.find((m) => m.accountId === firi.id);
+  assertEqual(firstBuy.kind, 'buy', 'crypto accounts start with a purchase');
+  assertEqual(firstBuy.note, 'Startbeholdning');
+});
+
+test('addAccount rejects missing names and unknown types', () => {
+  const store = createStore(memoryStorage());
+  const result = store.addAccount({ name: '  ', type: 'castle', institution: '' });
+  assert(!result.ok);
+  assertDeepEqual(Object.keys(result.errors).sort(), ['name', 'type']);
+  assertEqual(store.getState().accounts.length, 0);
+});
+
+test('addMovement checks that the kind of movement fits the account', () => {
+  const { store, bank, firi } = storeWithAccounts();
+  assert(!store.addMovement({ accountId: bank.id, kind: 'buy', asset: 'BTC', quantity: 1, amount: 1, date: today, note: '' }).ok, 'no coins on a bank account');
+  assert(!store.addMovement({ accountId: firi.id, kind: 'deposit', amount: 100, date: today, note: '' }).ok, 'crypto accounts use buy/sell');
+  const result = store.addMovement({ accountId: bank.id, kind: 'deposit', amount: 0, date: '2026-02-30', note: '' });
+  assertDeepEqual(Object.keys(result.errors).sort(), ['amount', 'date']);
+});
+
+test('you cannot sell more coins than the account holds', () => {
+  const { store, firi } = storeWithAccounts();
+  const tooMuch = store.addMovement({ accountId: firi.id, kind: 'sell', asset: 'BTC', quantity: 0.02, amount: 1_000_000, date: today, note: '' });
+  assert(!tooMuch.ok);
+  assert(tooMuch.errors.quantity.includes('0,01'), tooMuch.errors.quantity);
+  const noEth = store.addMovement({ accountId: firi.id, kind: 'sell', asset: 'ETH', quantity: 1, amount: 1, date: today, note: '' });
+  assert(noEth.errors.quantity.includes('ingen'), noEth.errors.quantity);
+  assert(store.addMovement({ accountId: firi.id, kind: 'sell', asset: 'BTC', quantity: 0.01, amount: 800_000, date: today, note: '' }).ok);
+});
+
+test('a transfer moves money from one account to another, so the net worth is not counted twice', () => {
+  const { store, bank, fund } = storeWithAccounts();
+  const result = store.addMovement({ accountId: fund.id, kind: 'deposit', amount: 200_000, date: today, note: 'Fondssparing' }, { counterAccountId: bank.id });
+  assert(result.ok);
+  assertEqual(result.counter.accountId, bank.id);
+  assertEqual(result.counter.kind, 'withdrawal');
+  assertEqual(result.counter.note, 'Overført til Indeksfond');
+  assertEqual(result.counter.link, result.movement.link);
+});
+
+test('paying down debt from a bank account is a withdrawal on both', () => {
+  const { store, bank, loan } = storeWithAccounts();
+  const result = store.addMovement({ accountId: loan.id, kind: 'withdrawal', amount: 50_000, date: today, note: '' }, { counterAccountId: bank.id });
+  assertEqual(result.counter.kind, 'withdrawal');
+  const borrowMore = store.addMovement({ accountId: loan.id, kind: 'deposit', amount: 50_000, date: today, note: '' }, { counterAccountId: bank.id });
+  assertEqual(borrowMore.counter.kind, 'deposit', 'borrowing more puts the money into the bank account');
+});
+
+test('transfers are rejected to the same account, to crypto accounts and for new values', () => {
+  const { store, bank, fund, firi } = storeWithAccounts();
+  assert(!store.addMovement({ accountId: fund.id, kind: 'deposit', amount: 100, date: today, note: '' }, { counterAccountId: fund.id }).ok);
+  assert(!store.addMovement({ accountId: fund.id, kind: 'deposit', amount: 100, date: today, note: '' }, { counterAccountId: firi.id }).ok);
+  assert(!store.addMovement({ accountId: fund.id, kind: 'value', amount: 100, date: today, note: '' }, { counterAccountId: bank.id }).ok);
+});
+
+test('deleting one side of a transfer deletes both, and undo restores both', () => {
+  const { store, bank, fund } = storeWithAccounts();
+  const before = store.getState().movements.length;
+  const { movement } = store.addMovement({ accountId: fund.id, kind: 'deposit', amount: 200_000, date: today, note: '' }, { counterAccountId: bank.id });
+  const removed = store.removeMovement(movement.id);
+  assertEqual(removed.length, 2);
+  assertEqual(store.getState().movements.length, before);
+  store.restoreMovements(removed);
+  assertEqual(store.getState().movements.length, before + 2);
+});
+
+test('removeAccount takes its movements (and the other side of transfers) with it; undo brings them back', () => {
+  const { store, bank, fund } = storeWithAccounts();
+  store.addMovement({ accountId: fund.id, kind: 'deposit', amount: 200_000, date: today, note: '' }, { counterAccountId: bank.id });
+  const countBefore = store.getState().movements.length;
+  const removed = store.removeAccount(fund.id);
+  assert(!store.getState().movements.some((m) => m.accountId === fund.id || m.link), 'no fund movements and no half transfers left');
+  store.restoreAccount(removed);
+  assertEqual(store.getState().movements.length, countBefore);
+  assertEqual(store.getState().accounts.length, 4);
+});
+
+test('an account with movements can only change to a similar type', () => {
+  const { store, bank } = storeWithAccounts();
+  assert(store.updateAccount(bank.id, { type: 'savings', name: 'Sparekonto' }).ok, 'bank → savings is fine');
+  assert(!store.updateAccount(bank.id, { type: 'crypto' }).ok, 'bank → crypto would break the movements');
+});
+
+test('sanitizeState drops movements whose account no longer exists', () => {
+  const { state, skipped } = sanitizeState({
+    accounts: [{ id: 'a', name: 'Konto', type: 'bank', institution: '' }],
+    movements: [
+      { id: 'm1', accountId: 'a', kind: 'opening', amount: 100, date: '2026-10-01', note: '' },
+      { id: 'm2', accountId: 'gone', kind: 'deposit', amount: 100, date: '2026-10-01', note: '' },
+      { id: 'm3', accountId: 'a', kind: 'buy', asset: 'BTC', quantity: 1, amount: 1, date: '2026-10-01', note: '' },
+    ],
+  });
+  assertEqual(state.movements.length, 1);
+  assertEqual(skipped, 2);
+});

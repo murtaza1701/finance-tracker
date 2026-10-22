@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""A tiny local web server for Pengeflyt.
+"""En liten lokal webserver for Pengeflyt.
 
-Browsers don't load JavaScript modules from file:// addresses, so the app has to be
-served over http while you work on it. No installs needed - Python 3 is enough.
+Nettlesere laster ikke JavaScript-moduler fra file://-adresser, så appen må serveres
+over http mens du jobber med den. Ingenting må installeres – Python 3 holder.
 
     python3 serve.py          ->  http://localhost:8000
     python3 serve.py 3000     ->  http://localhost:3000
@@ -16,15 +16,15 @@ import sys
 
 class Server(http.server.ThreadingHTTPServer):
     def server_bind(self):
-        # The standard server looks up the computer's host name here (a reverse DNS
-        # lookup) just for log messages; on some networks that hangs, so skip it.
+        # Standardserveren slår opp maskinens navn her (omvendt DNS-oppslag) bare for
+        # loggmeldinger; på noen nettverk henger det, så hopp over det.
         socketserver.TCPServer.server_bind(self)
         self.server_name = "localhost"
         self.server_port = self.server_address[1]
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
-    # Some systems map .js to text/plain, which browsers refuse to run as a module.
+    # Noen systemer sender .js som text/plain, og det nekter nettlesere å kjøre som modul.
     extensions_map = {
         **http.server.SimpleHTTPRequestHandler.extensions_map,
         ".js": "text/javascript",
@@ -34,7 +34,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     }
 
     def end_headers(self):
-        # Always serve the latest files, so a reload shows your newest changes.
+        # Send alltid de nyeste filene, så en omlasting viser de siste endringene.
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
@@ -44,9 +44,9 @@ def main():
     root = os.path.dirname(os.path.abspath(__file__))
     handler = functools.partial(Handler, directory=root)
     with Server(("127.0.0.1", port), handler) as server:
-        print(f"Pengeflyt is running at http://localhost:{port}")
-        print(f"Unit tests:            http://localhost:{port}/tests/")
-        print("Press Ctrl+C to stop.", flush=True)
+        print(f"Pengeflyt kjører på http://localhost:{port}")
+        print(f"Enhetstester:          http://localhost:{port}/tests/")
+        print("Trykk Ctrl+C for å stoppe.", flush=True)
         try:
             server.serve_forever()
         except KeyboardInterrupt:

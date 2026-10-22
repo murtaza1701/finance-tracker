@@ -1,5 +1,5 @@
 import { test, assert, assertDeepEqual, assertEqual } from './harness.js';
-import { categoryBars, niceScale } from '../src/charts.js';
+import { categoryBars, niceRange, niceScale } from '../src/charts.js';
 
 test('niceScale rounds the axis up to a nice number', () => {
   assertDeepEqual(niceScale(2_000_000), { max: 2_000_000, step: 500_000, ticks: [0, 500_000, 1_000_000, 1_500_000, 2_000_000] });
@@ -19,6 +19,18 @@ test('every value fits under the axis maximum', () => {
   }
 });
 
+test('niceRange covers the values, also below zero (debt)', () => {
+  const range = niceRange(-3_200_000, 9_100_000);
+  assert(range.min <= -3_200_000 && range.max >= 9_100_000, JSON.stringify(range));
+  assert(range.ticks.includes(0), 'zero is one of the ticks');
+  assertDeepEqual(niceRange(9_000_000, 11_000_000).ticks, [9_000_000, 9_500_000, 10_000_000, 10_500_000, 11_000_000], 'does not need to start at zero');
+});
+
+test('niceRange gives a flat line some room above and below', () => {
+  const range = niceRange(5_000_000, 5_000_000);
+  assert(range.min < 5_000_000 && range.max > 5_000_000, JSON.stringify(range));
+});
+
 test('categoryBars scales bars to the biggest category and links to its transactions', () => {
   const markup = String(
     categoryBars(
@@ -31,5 +43,5 @@ test('categoryBars scales bars to the biggest category and links to its transact
   );
   assert(markup.includes('style="width: 100.0%"'), 'largest bar is full width');
   assert(markup.includes('style="width: 25.0%"'), 'other bars are relative to it');
-  assert(markup.includes('href="#/transactions?month=2026-10&amp;category=groceries"'), 'links to the filtered list');
+  assert(markup.includes('href="#/transaksjoner?month=2026-10&amp;category=groceries"'), 'links to the filtered list');
 });

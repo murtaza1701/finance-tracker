@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="nb">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pengeflyt · Unit tests</title>
+  <title>Pengeflyt · Enhetstester</title>
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
   <style>
     body { margin: 32px auto; max-width: 820px; padding: 0 16px; font: 15px/1.5 system-ui, sans-serif; color: #0b0b0b; background: #fcfcfb; }
@@ -21,8 +21,8 @@
   </style>
 </head>
 <body>
-  <h1>Pengeflyt unit tests</h1>
-  <p class="summary" id="summary">Running…</p>
+  <h1>Pengeflyt – enhetstester</h1>
+  <p class="summary" id="summary">Kjører …</p>
   <ol id="results"></ol>
   <script type="module">
     import { run } from './harness.js';
@@ -44,7 +44,7 @@
     }
     const failed = results.filter((result) => !result.ok).length;
     const summary = document.getElementById('summary');
-    summary.textContent = `${results.length - failed} passed, ${failed} failed`;
+    summary.textContent = `${results.length - failed} bestått, ${failed} feilet`;
     summary.className = `summary ${failed ? 'fail' : 'pass'}`;
   </script>
 </body>
