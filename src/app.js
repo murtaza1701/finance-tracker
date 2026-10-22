@@ -8,7 +8,7 @@ import { generateDemoData } from './demo.js';
 import { createAccountDialog, createBudgetDialog, createMovementDialog, createTransactionDialog } from './dialogs.js';
 import { byNewest, filterTransactions, suggestBudgets } from './finance.js';
 import { icon } from './icons.js';
-import { heldCoins } from './networth.js';
+import { heldAssets } from './networth.js';
 import { createPriceFeed } from './prices.js';
 import { createStore, sanitizeState } from './store.js';
 import { confirmDialog, downloadFile, showToast } from './ui.js';
@@ -343,9 +343,10 @@ async function loadDemoData() {
     });
     if (!confirmed) return;
   }
-  // Hent historiske kurser først, så kryptokjøpene i eksempelet får kursene fra den dagen de ble gjort.
-  showToast('Henter kurser til eksempeldataene …', { duration: 2500 });
-  await Promise.race([feed.loadHistory(['BTC', 'ETH', 'SOL', 'USDT']), new Promise((resolve) => setTimeout(resolve, 6000))]);
+  // Hent historiske kurser først, så kjøpene i eksempelet får kursene fra den dagen de ble gjort.
+  showToast('Henter kurser til eksempeldataene …', { duration: 3000 });
+  const history = feed.loadHistory(['BTC', 'ETH', 'SOL', 'USDT', 'aksje:EQNR.OL', 'aksje:DNB.OL']);
+  await Promise.race([history, new Promise((resolve) => setTimeout(resolve, 8000))]);
   const demo = generateDemoData({ priceOn: (symbol, date) => feed.priceOn(symbol, date) });
   ui.month = currentMonth();
   ui.filters = defaultFilters(ui.month);
@@ -412,11 +413,11 @@ window.addEventListener('hashchange', readRoute);
 store.subscribe((state) => {
   applyTheme(state.settings);
   feed.setCurrency(state.settings.currency);
-  feed.setAssets(heldCoins(state.accounts, state.movements));
+  feed.setAssets(heldAssets(state.accounts, state.movements));
   render();
 });
 
-// Når en mynt får kurs for første gang, tegnes siden på nytt (grafen og tallene trenger den).
+// Når en mynt eller aksje får kurs for første gang, tegnes siden på nytt (grafen og tallene trenger den).
 // Ellers oppdateres bare tallene, i views/live.js.
 let pricedCoins = Object.keys(feed.prices()).sort().join();
 feed.subscribe(() => {
@@ -435,7 +436,7 @@ for (const element of document.querySelectorAll('[data-icon]')) {
 }
 document.getElementById('institutions').innerHTML = INSTITUTIONS.map((name) => `<option value="${name}"></option>`).join('');
 applyTheme(store.getState().settings);
-feed.setAssets(heldCoins(store.getState().accounts, store.getState().movements));
+feed.setAssets(heldAssets(store.getState().accounts, store.getState().movements));
 readRoute();
 if (!storage) {
   showToast('Nettleseren blokkerer lagring, så endringene forsvinner når du lukker fanen.', { duration: 12000 });

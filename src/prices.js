@@ -1,11 +1,14 @@
 // Kryptokurser. Live-kurser kommer fra Binance i sanntid (en WebSocket som sender ny pris hvert
 // sekund, i USDT) og regnes om til kroner med kursen for USDT fra CoinGecko. CoinGecko gir også
 // kurser i kroner direkte (hvert minutt), døgnendring og historiske dagskurser til grafen.
+// Aksjekurser kommer fra Yahoo Finance via en liten Cloudflare Worker (se cloudflare/), ca. 15 min
+// forsinket, og regnes om til kroner med valutakurser fra samme sted.
 // Bare kurser hentes – hva du eier, sendes aldri noe sted. Ingen innlogging eller nøkler trengs.
-import { COINS, findCoin } from './accounts.js';
+import { COINS, findCoin, isStockKey, isValidTicker, tickerOf } from './accounts.js';
 import { todayISO, toISODate } from './dates.js';
 
 const GECKO = 'https://api.coingecko.com/api/v3';
+const STOCK_PROXY = 'https://pengeflyt-kurser.muhus5112-b37.workers.dev';
 const BINANCE_STREAM = 'wss://stream.binance.com:9443/stream';
 const POLL_MS = 60_000;
 const LIVE_TIMEOUT_MS = 15_000;
@@ -45,6 +48,37 @@ export function parseGeckoHistory(json) {
     const [timestamp, price] = point;
     if (typeof timestamp === 'number' && typeof price === 'number') byDate.set(toISODate(new Date(timestamp)), price);
   }
+  return [...byDate].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+/**
+ * Leser kursen fra Yahoo (via Workeren). Kurser fra London oppgis i pence (GBp) og deles på 100.
+ * Gir { symbol, name, currency, price, change24h } eller null.
+ */
+export function parseYahooQuote(json) {
+  const meta = json?.chart?.result?.[0]?.meta;
+  if (!meta || typeof meta.regularMarketPrice !== 'number') return null;
+  const pence = meta.currency === 'GBp';
+  const previous = meta.chartPreviousClose ?? meta.previousClose;
+  return {
+    symbol: meta.symbol,
+    name: meta.longName || meta.shortName || meta.symbol,
+    currency: pence ? 'GBP' : meta.currency,
+    price: meta.regularMarketPrice * (pence ? 0.01 : 1),
+    change24h: typeof previous === 'number' && previous > 0 ? ((meta.regularMarketPrice - previous) / previous) * 100 : null,
+  };
+}
+
+/** Sluttkurs per dag fra Yahoo som en sortert liste [[dato, kurs], …] (dager uten kurs hoppes over). */
+export function parseYahooHistory(json) {
+  const result = json?.chart?.result?.[0];
+  const times = result?.timestamp ?? [];
+  const closes = result?.indicators?.quote?.[0]?.close ?? [];
+  const factor = result?.meta?.currency === 'GBp' ? 0.01 : 1;
+  const byDate = new Map();
+  times.forEach((time, i) => {
+    if (typeof closes[i] === 'number') byDate.set(toISODate(new Date(time * 1000)), closes[i] * factor);
+  });
   return [...byDate].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
@@ -108,6 +142,70 @@ export function createPriceFeed({ storage, currency = 'NOK' }) {
 
   const historyKey = (symbol) => `${HISTORY_KEY}:${currency}:${symbol}`;
 
+  async function geckoHistory(coin) {
+    const url = `${GECKO}/coins/${coin.gecko}/market_chart?vs_currency=${currency.toLowerCase()}&days=365&interval=daily`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`CoinGecko svarte ${response.status}`);
+    return parseGeckoHistory(await response.json());
+  }
+
+  /** Et års sluttkurser for en aksje, regnet om til valgt valuta med valutakursen for hver dag. */
+  async function stockHistory(key) {
+    const json = await fetchYahoo(tickerOf(key), '1y');
+    const points = parseYahooHistory(json);
+    const quoteCurrency = parseYahooQuote(json)?.currency ?? currency;
+    if (quoteCurrency === currency) return points;
+    const fx = parseYahooHistory(await fetchYahoo(`${quoteCurrency}${currency}=X`, '1y'));
+    const rate = await fxRate(quoteCurrency);
+    return points.map(([date, price]) => [date, price * (priceOnDate(fx, date) ?? rate)]);
+  }
+  const cryptoAssets = () => assets.filter((key) => findCoin(key));
+  const stockAssets = () => assets.filter(isStockKey);
+  const fxRates = new Map(); // valuta → { rate, at }
+
+  async function fetchYahoo(ticker, range = '1d') {
+    const response = await fetch(`${STOCK_PROXY}/?symbol=${encodeURIComponent(ticker)}&range=${range}`);
+    if (!response.ok) throw new Error(`Kursserveren svarte ${response.status}`);
+    return response.json();
+  }
+
+  /** Hvor mange kroner (eller valgt valuta) én enhet av `from` er verdt nå. */
+  async function fxRate(from) {
+    if (from === currency) return 1;
+    const cached = fxRates.get(from);
+    if (cached && Date.now() - cached.at < 10 * 60_000) return cached.rate;
+    const quote = parseYahooQuote(await fetchYahoo(`${from}${currency}=X`));
+    if (!quote) throw new Error(`Fant ikke valutakurs for ${from}`);
+    fxRates.set(from, { rate: quote.price, at: Date.now() });
+    return quote.price;
+  }
+
+  /** Henter kursen for én aksje, regnet om til valgt valuta, og lagrer den. */
+  async function fetchStock(key) {
+    const quote = parseYahooQuote(await fetchYahoo(tickerOf(key)));
+    if (!quote) return null;
+    const rate = await fxRate(quote.currency);
+    prices[key] = { price: quote.price * rate, change24h: quote.change24h, name: quote.name, updatedAt: Date.now(), source: 'stock' };
+    return prices[key];
+  }
+
+  async function pollStocks() {
+    let ok = false;
+    for (const key of stockAssets()) {
+      try {
+        if (await fetchStock(key)) ok = true;
+      } catch {
+        // beholder forrige kurs
+      }
+    }
+    if (ok) {
+      updatedAt = updatedAt ?? Date.now();
+      if (status !== 'live') status = 'ok';
+      writeJSON(storage, CACHE_KEY, { currency, prices, usdtRate, updatedAt });
+    }
+    emit();
+  }
+
   function storedHistory(symbol) {
     if (!history.has(symbol)) history.set(symbol, readJSON(storage, historyKey(symbol))?.points ?? null);
     return history.get(symbol);
@@ -135,8 +233,9 @@ export function createPriceFeed({ storage, currency = 'NOK' }) {
   }
 
   async function poll() {
-    if (assets.length === 0) return;
-    const ids = new Set(assets.map((symbol) => findCoin(symbol)?.gecko).filter(Boolean));
+    if (stockAssets().length > 0) pollStocks();
+    if (cryptoAssets().length === 0) return;
+    const ids = new Set(cryptoAssets().map((symbol) => findCoin(symbol)?.gecko).filter(Boolean));
     ids.add('tether'); // kursen for USDT trengs for å regne om Binance-prisene
     if (!updatedAt) status = 'loading';
     try {
@@ -250,7 +349,7 @@ export function createPriceFeed({ storage, currency = 'NOK' }) {
 
     /** Hvilke mynter skal følges? Kalles når kontoene endres. */
     setAssets(symbols) {
-      const next = [...new Set(symbols)].filter((symbol) => findCoin(symbol)).sort();
+      const next = [...new Set(symbols)].filter((key) => findCoin(key) || (isStockKey(key) && isValidTicker(tickerOf(key)))).sort();
       if (next.join() === assets.join()) return;
       assets = next;
       start();
@@ -274,6 +373,15 @@ export function createPriceFeed({ storage, currency = 'NOK' }) {
      */
     async quote(symbol) {
       if (prices[symbol]) return prices[symbol].price;
+      if (isStockKey(symbol)) {
+        try {
+          const price = await fetchStock(symbol);
+          emit();
+          return price?.price;
+        } catch {
+          return undefined;
+        }
+      }
       const coin = findCoin(symbol);
       if (!coin) return undefined;
       try {
@@ -292,6 +400,20 @@ export function createPriceFeed({ storage, currency = 'NOK' }) {
       }
     },
 
+    /** Søker etter aksjer, fond og ETF-er hos Yahoo: [{ symbol, name, exchange }]. */
+    async searchStocks(query) {
+      try {
+        const response = await fetch(`${STOCK_PROXY}/?search=${encodeURIComponent(query)}`);
+        if (!response.ok) return [];
+        const json = await response.json();
+        return (json.quotes ?? [])
+          .filter((q) => ['EQUITY', 'ETF', 'MUTUALFUND'].includes(q.quoteType) && isValidTicker(q.symbol))
+          .map((q) => ({ symbol: q.symbol, name: q.longname || q.shortname || q.symbol, exchange: q.exchDisp || q.exchange || '' }));
+      } catch {
+        return [];
+      }
+    },
+
     /**
      * Henter historiske dagskurser (siste år) for grafen og lagrer dem i 6 timer.
      * Gir true hvis noe nytt ble hentet (da bør grafen tegnes på nytt).
@@ -303,12 +425,9 @@ export function createPriceFeed({ storage, currency = 'NOK' }) {
         for (const symbol of symbols) {
           const coin = findCoin(symbol);
           const stored = readJSON(storage, historyKey(symbol));
-          if (!coin || (stored && Date.now() - stored.fetchedAt < HISTORY_MAX_AGE_MS)) continue;
+          if ((!coin && !isStockKey(symbol)) || (stored && Date.now() - stored.fetchedAt < HISTORY_MAX_AGE_MS)) continue;
           try {
-            const url = `${GECKO}/coins/${coin.gecko}/market_chart?vs_currency=${currency.toLowerCase()}&days=365&interval=daily`;
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`CoinGecko svarte ${response.status}`);
-            const points = parseGeckoHistory(await response.json());
+            const points = coin ? await geckoHistory(coin) : await stockHistory(symbol);
             if (points.length) {
               history.set(symbol, points);
               writeJSON(storage, historyKey(symbol), { fetchedAt: Date.now(), points });

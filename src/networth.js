@@ -3,13 +3,14 @@
 // Rene funksjoner uten nettleser eller lagring – testes i tests/networth.test.js.
 //
 // En bevegelse: { id, accountId, kind, date, amount (øre), asset, quantity, invested, note, link, createdAt }
-import { ACCOUNT_TYPES, accountKind } from './accounts.js';
+import { ACCOUNT_TYPES, accountKind, isMarketKind, priceKey } from './accounts.js';
 import { addDays } from './dates.js';
 
 /** Hvilke bevegelser hver kontotype kan ha (i tillegg til "opening", startsaldoen). */
 export const MOVEMENT_KINDS = {
   balance: ['deposit', 'withdrawal', 'value'],
   investment: ['deposit', 'withdrawal', 'value'],
+  stocks: ['buy', 'sell'],
   crypto: ['buy', 'sell'],
   debt: ['withdrawal', 'deposit', 'value'],
 };
@@ -84,11 +85,13 @@ export function holdingsValue(holdings, priceOf) {
   return { value, missing };
 }
 
+/** priceOf får kursnøkkelen (se priceKey i accounts.js): "BTC" eller "aksje:EQNR.OL". */
 function accountStatus(account, sortedMovements, priceOf, until = null) {
+  const kind = accountKind(account);
   const replay = replayAccount(sortedMovements, until);
-  if (accountKind(account) !== 'crypto') return { ...replay, missing: [] };
-  const { value, missing } = holdingsValue(replay.holdings, priceOf);
-  return { ...replay, value, missing };
+  if (!isMarketKind(kind)) return { ...replay, missing: [] };
+  const { value, missing } = holdingsValue(replay.holdings, (asset) => priceOf(priceKey(kind, asset)));
+  return { ...replay, value: replay.value + value, missing };
 }
 
 const typeOrder = (type) => ACCOUNT_TYPES.findIndex((t) => t.id === type);
@@ -102,7 +105,7 @@ export function summarizeNetWorth(accounts, movements, prices = {}) {
   const rows = accounts.map((account) => {
     const kind = accountKind(account);
     const status = accountStatus(account, movementsFor(account.id, movements), priceOf);
-    const tracksGain = kind === 'investment' || kind === 'crypto';
+    const tracksGain = kind === 'investment' || isMarketKind(kind);
     const gain = tracksGain ? status.value - status.invested : null;
     return {
       account,
@@ -135,15 +138,16 @@ export function summarizeNetWorth(accounts, movements, prices = {}) {
   return { rows, assets, debts, total: assets - debts, byType, gain };
 }
 
-/** Alle mynter som finnes på minst én kryptokonto i dag. */
-export function heldCoins(accounts, movements) {
-  const coins = new Set();
+/** Kursnøklene til alle mynter og aksjer du eier i dag, f.eks. ["BTC", "aksje:EQNR.OL"]. */
+export function heldAssets(accounts, movements) {
+  const keys = new Set();
   for (const account of accounts) {
-    if (accountKind(account) !== 'crypto') continue;
+    const kind = accountKind(account);
+    if (!isMarketKind(kind)) continue;
     const { holdings } = replayAccount(movementsFor(account.id, movements));
-    Object.keys(holdings).forEach((coin) => coins.add(coin));
+    Object.keys(holdings).forEach((asset) => keys.add(priceKey(kind, asset)));
   }
-  return [...coins].sort();
+  return [...keys].sort();
 }
 
 /**

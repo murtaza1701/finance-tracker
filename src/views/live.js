@@ -1,7 +1,7 @@
 // Oppdaterer tallene på siden når kryptokursene endrer seg, uten å tegne hele siden på nytt
 // (da ville åpne nedtrekkslister lukkes og verktøytips forsvinne hvert sekund).
 // Elementer merkes med data-live-* i markupen; endrede tall blinker kort grønt eller rødt.
-import { findCoin } from '../accounts.js';
+import { isMarketKind, priceKey } from '../accounts.js';
 import { formatMoney, formatPrice } from '../money.js';
 import { summarizeNetWorth } from '../networth.js';
 import { changeText, gainRatioText, gainText, liveStatus, trendClass } from './shared.js';
@@ -43,7 +43,7 @@ export function updateLiveValues(container, state, feed) {
   }
 
   for (const row of summary.rows) {
-    if (row.kind !== 'crypto') continue; // bare kryptoverdier endrer seg med kursene
+    if (!isMarketKind(row.kind)) continue; // bare krypto og aksjer endrer seg med kursene
     const id = CSS.escape(row.account.id);
     for (const element of container.querySelectorAll(`[data-live-account="${id}"]`)) setLive(element, money(row.value), row.value);
     for (const element of container.querySelectorAll(`[data-live-gain="${id}"]`)) {
@@ -51,7 +51,7 @@ export function updateLiveValues(container, state, feed) {
       setTrend(element, row.gain);
     }
     for (const [symbol, quantity] of Object.entries(row.holdings)) {
-      const price = prices[symbol]?.price;
+      const price = prices[priceKey(row.kind, symbol)]?.price;
       if (typeof price !== 'number') continue;
       const value = Math.round(quantity * price * 100);
       setLive(find(`[data-live-holding="${id}:${CSS.escape(symbol)}"]`), money(value), value);
@@ -71,7 +71,7 @@ export function updateLiveValues(container, state, feed) {
   for (const element of container.querySelectorAll('[data-live-price]')) {
     const symbol = element.dataset.livePrice;
     const price = prices[symbol];
-    if (price && findCoin(symbol)) setLive(element, formatPrice(price.price, currency), price.price);
+    if (price) setLive(element, formatPrice(price.price, currency), price.price);
   }
   for (const element of container.querySelectorAll('[data-live-change]')) {
     const change = prices[element.dataset.liveChange]?.change24h;

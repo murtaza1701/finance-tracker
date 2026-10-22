@@ -1,5 +1,5 @@
 // Kontosiden: verdien til én konto, knapper for innskudd/uttak/kjøp/salg, beholdning og alle bevegelser.
-import { accountKind, actionLabel, findAccountType, findCoin } from '../accounts.js';
+import { accountKind, actionLabel, assetName, findAccountType, isMarketKind, priceKey } from '../accounts.js';
 import { mountLineChart } from '../charts.js';
 import { html } from '../html.js';
 import { icon } from '../icons.js';
@@ -58,7 +58,7 @@ export function renderAccount(ctx) {
     <section class="card hero">
       <div class="hero-top">
         <p class="hero-label">${kind === 'debt' ? 'Du skylder' : 'Verdi nå'}</p>
-        ${kind === 'crypto' ? liveChip(feed) : ''}
+        ${isMarketKind(kind) ? liveChip(feed) : ''}
       </div>
       <p class="hero-value" data-live-account="${account.id}">${money(row.value)}</p>
       ${row.gain !== null
@@ -76,7 +76,7 @@ export function renderAccount(ctx) {
       </div>
     </section>
 
-    ${kind === 'crypto' ? holdingsCard(account, row, feed, currency, money) : ''}
+    ${isMarketKind(kind) ? holdingsCard(account, kind, row, feed, currency, money) : ''}
 
     ${historyCard(ctx, series, {
       title: 'Utvikling',
@@ -108,37 +108,40 @@ export function mountAccount(container, ctx) {
     cleanups.push(mountLineChart(target, historyFor(ctx, [account]), { currency: ctx.state.settings.currency, label }));
   }
   cleanups.push(ctx.feed.subscribe(() => updateLiveValues(container, ctx.state, ctx.feed)));
-  if (accountKind(account) === 'crypto') {
-    const coins = Object.keys(summarizeNetWorth([account], ctx.state.movements, {}).rows[0].holdings);
-    ctx.feed.loadHistory(coins).then((changed) => changed && ctx.rerender());
+  const kind = accountKind(account);
+  if (isMarketKind(kind)) {
+    const keys = Object.keys(summarizeNetWorth([account], ctx.state.movements, {}).rows[0].holdings).map((asset) => priceKey(kind, asset));
+    ctx.feed.loadHistory(keys).then((changed) => changed && ctx.rerender());
   }
   return () => cleanups.forEach((cleanup) => cleanup());
 }
 
-function holdingsCard(account, row, feed, currency, money) {
+function holdingsCard(account, kind, row, feed, currency, money) {
   const prices = feed.prices();
   const holdings = Object.entries(row.holdings);
+  const stocks = kind === 'stocks';
   return html`<section class="card">
     <header class="card-header">
       <div>
         <h2 class="card-title">Beholdning</h2>
-        <p class="card-subtitle">Antall mynter og hva de er verdt nå</p>
+        <p class="card-subtitle">${stocks ? 'Antall aksjer og hva de er verdt nå (kurs ca. 15 min forsinket)' : 'Antall mynter og hva de er verdt nå'}</p>
       </div>
     </header>
     ${holdings.length === 0
-      ? html`<p class="muted-note">Ingen mynter på kontoen. Trykk «Kjøp» for å legge til.</p>`
+      ? html`<p class="muted-note">Ingen ${stocks ? 'aksjer' : 'mynter'} på kontoen. Trykk «Kjøp» for å legge til.</p>`
       : html`<div class="table-scroll"><table class="data-table holdings-table">
           <caption class="visually-hidden">Beholdning på ${account.name}</caption>
-          <thead><tr><th scope="col">Mynt</th><th scope="col">Antall</th><th scope="col">Kurs</th><th scope="col">Verdi</th><th scope="col">24 t</th></tr></thead>
+          <thead><tr><th scope="col">${stocks ? 'Aksje' : 'Mynt'}</th><th scope="col">Antall</th><th scope="col">Kurs</th><th scope="col">Verdi</th><th scope="col">24 t</th></tr></thead>
           <tbody>
             ${holdings.map(([symbol, quantity]) => {
-              const price = prices[symbol];
+              const key = priceKey(kind, symbol);
+              const price = prices[key];
               return html`<tr>
-                <th scope="row"><span class="coin-badge" aria-hidden="true">${symbol}</span> ${findCoin(symbol)?.name ?? symbol}</th>
+                <th scope="row"><span class="coin-badge" aria-hidden="true">${symbol}</span> <span class="holding-name">${assetName(kind, symbol, prices)}</span></th>
                 <td>${formatQuantity(quantity)}</td>
-                <td data-live-price="${symbol}">${price ? formatPrice(price.price, currency) : '–'}</td>
+                <td data-live-price="${key}">${price ? formatPrice(price.price, currency) : '–'}</td>
                 <td data-live-holding="${account.id}:${symbol}">${price ? money(Math.round(quantity * price.price * 100)) : '–'}</td>
-                <td class="change ${trendClass(price?.change24h)}" data-live-change="${symbol}">${changeText(price?.change24h)}</td>
+                <td class="change ${trendClass(price?.change24h)}" data-live-change="${key}">${changeText(price?.change24h)}</td>
               </tr>`;
             })}
           </tbody>

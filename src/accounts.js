@@ -3,7 +3,8 @@
 /**
  * kind bestemmer hvordan en konto får verdien sin:
  *  - balance:    saldo du registrerer selv (bank, sparing, annet)
- *  - investment: som balance, men appen regner også ut avkastning (fond, aksjer)
+ *  - investment: som balance, men appen regner også ut avkastning (fond)
+ *  - stocks:     antall aksjer per ticker × kurs fra Yahoo Finance
  *  - crypto:     antall mynter × live kurs
  *  - debt:       gjeld, trekkes fra formuen
  */
@@ -11,7 +12,7 @@ export const ACCOUNT_TYPES = [
   { id: 'bank', name: 'Bank', icon: '🏦', kind: 'balance', example: 'Brukskonto' },
   { id: 'savings', name: 'Sparing', icon: '🐷', kind: 'balance', example: 'BSU' },
   { id: 'fund', name: 'Fond', icon: '📈', kind: 'investment', example: 'Indeksfond' },
-  { id: 'stocks', name: 'Aksjer', icon: '📊', kind: 'investment', example: 'Aksjesparekonto' },
+  { id: 'stocks', name: 'Aksjer', icon: '📊', kind: 'stocks', example: 'Aksjesparekonto' },
   { id: 'crypto', name: 'Krypto', icon: '🪙', kind: 'crypto', example: 'Firi' },
   { id: 'other', name: 'Annet', icon: '💼', kind: 'balance', example: 'Kontanter' },
   { id: 'loan', name: 'Gjeld', icon: '🧾', kind: 'debt', example: 'Studielån' },
@@ -25,6 +26,27 @@ export function findAccountType(id) {
 
 export function accountKind(account) {
   return findAccountType(account?.type)?.kind ?? 'balance';
+}
+
+/** Kontoer der verdien er antall × kurs (krypto og aksjer). */
+export function isMarketKind(kind) {
+  return kind === 'crypto' || kind === 'stocks';
+}
+
+/**
+ * Nøkkelen en kurs lagres under. Aksjer får et prefiks så en ticker aldri blandes med en
+ * kryptomynt med samme navn (LINK er både Chainlink og en aksje på Nasdaq).
+ */
+export function priceKey(kind, asset) {
+  return kind === 'stocks' ? `aksje:${asset}` : asset;
+}
+
+export const isStockKey = (key) => key.startsWith('aksje:');
+export const tickerOf = (key) => key.replace(/^aksje:/, '');
+
+/** En ticker slik Yahoo skriver dem: EQNR.OL, AAPL, 0P0000PS3V.IR … */
+export function isValidTicker(ticker) {
+  return typeof ticker === 'string' && /^[A-Z0-9][A-Z0-9.^=-]{0,19}$/.test(ticker);
 }
 
 /** Navnet på en bevegelse i lister, f.eks. "Innskudd" eller "Nedbetaling". */
@@ -46,6 +68,12 @@ export const INSTITUTIONS = [
   'DNB', 'SpareBank 1', 'Nordea', 'Handelsbanken', 'Sbanken', 'Danske Bank', 'Storebrand', 'Bulder Bank',
   'Nordnet', 'KRON', 'Firi', 'Binance', 'Revolut', 'Lånekassen',
 ];
+
+/** Navn på en mynt eller aksje: "Bitcoin", eller navnet fra Yahoo ("Equinor ASA") når kursen er hentet. */
+export function assetName(kind, asset, prices = {}) {
+  if (kind === 'stocks') return prices[priceKey(kind, asset)]?.name ?? asset;
+  return findCoin(asset)?.name ?? asset;
+}
 
 /**
  * Kryptovalutaer appen kan hente kurser for.

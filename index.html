@@ -44,6 +44,7 @@
   <input type="file" id="import-file" accept=".json,application/json" hidden>
 
   <datalist id="institutions"></datalist>
+  <datalist id="ticker-suggestions"></datalist>
 
   <!-- Ny / endre konto -->
   <dialog id="account-dialog" class="sheet" aria-labelledby="account-dialog-title">
@@ -91,18 +92,24 @@
           <p class="field-error" id="account-invested-error" hidden></p>
         </div>
 
-        <div class="field-row field-row-even" data-for="crypto">
-          <div class="field">
+        <div class="field-row field-row-even" data-for="holding">
+          <div class="field" data-for="coin">
             <label for="account-asset">Første mynt</label>
             <select class="input" id="account-asset"></select>
           </div>
+          <div class="field" data-for="ticker">
+            <label for="account-ticker">Første aksje <span class="optional">(valgfritt)</span></label>
+            <input class="input" id="account-ticker" list="ticker-suggestions" autocomplete="off" autocapitalize="characters"
+              placeholder="Søk, f.eks. Equinor" aria-describedby="account-crypto-hint account-ticker-error">
+            <p class="field-error" id="account-ticker-error" hidden></p>
+          </div>
           <div class="field">
             <label for="account-quantity">Antall <span class="optional">(valgfritt)</span></label>
-            <input class="input" id="account-quantity" inputmode="decimal" autocomplete="off" placeholder="F.eks. 0,005" aria-describedby="account-quantity-error">
+            <input class="input" id="account-quantity" inputmode="decimal" autocomplete="off" placeholder="F.eks. 10" aria-describedby="account-quantity-error">
             <p class="field-error" id="account-quantity-error" hidden></p>
           </div>
         </div>
-        <div class="field" data-for="crypto">
+        <div class="field" data-for="holding">
           <label for="account-paid">Betalt totalt <span class="optional">(valgfritt)</span></label>
           <div class="amount-input amount-input-small">
             <input id="account-paid" inputmode="decimal" autocomplete="off" placeholder="0" aria-describedby="account-crypto-hint account-paid-error">
@@ -143,6 +150,12 @@
             <label for="move-asset">Mynt</label>
             <select class="input" id="move-asset"></select>
             <p class="field-error" id="move-asset-error" hidden></p>
+          </div>
+          <div class="field" data-for="ticker">
+            <label for="move-ticker">Aksje</label>
+            <input class="input" id="move-ticker" list="ticker-suggestions" autocomplete="off" autocapitalize="characters"
+              placeholder="Søk, f.eks. Equinor" aria-describedby="move-quantity-hint move-ticker-error">
+            <p class="field-error" id="move-ticker-error" hidden></p>
           </div>
           <div class="field" data-for="quantity">
             <label for="move-quantity">Antall</label>

@@ -1,6 +1,6 @@
 // Dialogene: ny/endre transaksjon, budsjett, ny/endre konto og registrering av bevegelser.
 // Markupen ligger i index.html; koden her fyller dem ut, sjekker det som er skrevet og lagrer via store.
-import { ACCOUNT_TYPES, COINS, accountKind, actionLabel, findAccountType } from './accounts.js';
+import { ACCOUNT_TYPES, COINS, accountKind, actionLabel, assetName, findAccountType, isMarketKind, isValidTicker, priceKey } from './accounts.js';
 import { categoriesFor, getCategory } from './categories.js';
 import { todayISO } from './dates.js';
 import { suggestBudgets } from './finance.js';
@@ -47,6 +47,46 @@ const show = (form, name, visible) => {
 };
 
 const round8 = (value) => Math.round(value * 1e8) / 1e8;
+const normalizeTicker = (text) => text.trim().toUpperCase();
+
+/** Søk hos Yahoo mens du skriver i et tickerfelt; forslagene vises i <datalist id="ticker-suggestions">. */
+function attachTickerSearch(input, feed, onPick) {
+  const list = document.getElementById('ticker-suggestions');
+  let timer = null;
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const query = input.value.trim();
+    // Valgt fra listen: hent kursen med en gang.
+    if ([...list.options].some((option) => option.value === query)) {
+      onPick();
+      return;
+    }
+    if (query.length < 2) return;
+    timer = setTimeout(async () => {
+      const results = await feed.searchStocks(query);
+      if (input.value.trim() !== query) return; // brukeren har skrevet videre
+      list.innerHTML = String(html`${results.map((r) => html`<option value="${r.symbol}">${r.name}${r.exchange ? ` · ${r.exchange}` : ''}</option>`)}`);
+    }, 300);
+  });
+  input.addEventListener('change', onPick);
+}
+
+/** Forslag i tickerfeltet før du har søkt: aksjene du allerede eier. */
+function suggestHeld(tickers, prices) {
+  document.getElementById('ticker-suggestions').innerHTML = String(
+    html`${tickers.map((ticker) => html`<option value="${ticker}">${assetName('stocks', ticker, prices)}</option>`)}`,
+  );
+}
+
+/** Teksten under antall/ticker: kursen nå, eller hvorfor den mangler. */
+function priceHint({ kind, asset, price, failed, currency, prices }) {
+  if (!asset) return kind === 'stocks' ? 'Søk på navnet, f.eks. «Equinor», og velg fra listen.' : '';
+  if (failed) return `Fant ikke kurs for ${asset}. Søk på navnet og velg fra listen.`;
+  if (!price) return 'Henter kurs …';
+  return kind === 'stocks'
+    ? `${assetName(kind, asset, prices)}: ${formatPrice(price, currency)} per aksje (ca. 15 min forsinket)`
+    : `1 ${asset} ≈ ${formatPrice(price, currency)}`;
+}
 
 // ---------- Transaksjon ----------
 
@@ -203,13 +243,17 @@ export function createAccountDialog({ store, feed, onDone, onDelete }) {
   const form = dialog.querySelector('form');
   const typeGrid = form.querySelector('[data-slot="types"]');
   const assetSelect = form.querySelector('#account-asset');
-  const fields = ['type', 'name', 'institution', 'amount', 'invested', 'asset', 'quantity', 'paid'];
+  const tickerInput = form.querySelector('#account-ticker');
+  const fields = ['type', 'name', 'institution', 'amount', 'invested', 'asset', 'ticker', 'quantity', 'paid'];
   const quoted = new Set();
+  const failed = new Set();
   let editingId = null;
 
   assetSelect.innerHTML = String(html`${COINS.map((coin) => html`<option value="${coin.symbol}">${coin.symbol} – ${coin.name}</option>`)}`);
 
   const selectedType = () => form.querySelector('input[name="account-type"]:checked')?.value ?? 'bank';
+  const selectedKind = () => findAccountType(selectedType()).kind;
+  const currentAsset = (kind) => (kind === 'stocks' ? normalizeTicker(tickerInput.value) : assetSelect.value);
 
   function renderTypes(selected, lockedKind) {
     typeGrid.innerHTML = String(
@@ -227,28 +271,45 @@ export function createAccountDialog({ store, feed, onDone, onDelete }) {
     const type = findAccountType(selectedType());
     const creating = editingId === null;
     form.querySelector('#account-name').placeholder = `F.eks. ${type.example}`;
-    show(form, 'opening', creating && type.kind !== 'crypto');
+    const market = isMarketKind(type.kind);
+    show(form, 'opening', creating && !market);
     show(form, 'invested', creating && type.kind === 'investment');
-    show(form, 'crypto', creating && type.kind === 'crypto');
+    show(form, 'holding', creating && market);
+    show(form, 'coin', type.kind === 'crypto');
+    show(form, 'ticker', type.kind === 'stocks');
     const labels = { balance: 'Saldo nå', investment: 'Verdi nå', debt: 'Hvor mye skylder du nå?' };
     form.querySelector('[data-slot="amount-label"]').textContent = labels[type.kind] ?? 'Saldo nå';
-    const price = feed.prices()[assetSelect.value]?.price;
-    form.querySelector('[data-slot="crypto-hint"]').textContent = price
-      ? `1 ${assetSelect.value} ≈ ${formatPrice(price, store.getState().settings.currency)} nå. Står «Betalt» tomt, brukes dagens kurs.`
-      : 'Henter kurs …';
-    // Hent kursen én gang per mynt (ikke i en løkke hvis det feiler).
-    if (creating && type.kind === 'crypto' && !price && !quoted.has(assetSelect.value)) {
-      quoted.add(assetSelect.value);
-      feed.quote(assetSelect.value).then(() => dialog.open && updateFields());
+    if (creating && market) updateHint();
+  }
+
+  function updateHint() {
+    const kind = selectedKind();
+    const asset = currentAsset(kind);
+    const key = priceKey(kind, asset);
+    const price = feed.prices()[key]?.price;
+    const text = priceHint({ kind, asset, price, failed: failed.has(key), currency: store.getState().settings.currency, prices: feed.prices() });
+    form.querySelector('[data-slot="crypto-hint"]').textContent = price ? `${text}. Står «Betalt» tomt, brukes dagens kurs.` : text;
+    // Hent kursen én gang per mynt eller aksje (ikke i en løkke hvis det feiler).
+    const lookup = kind === 'crypto' || isValidTicker(asset);
+    if (asset && !price && lookup && !quoted.has(key)) {
+      quoted.add(key);
+      feed.quote(key).then((found) => {
+        if (found === undefined) failed.add(key);
+        if (dialog.open) updateHint();
+      });
     }
   }
+
+  attachTickerSearch(tickerInput, feed, () => updateHint());
 
   function open({ id = null } = {}) {
     const { accounts, movements, settings } = store.getState();
     const existing = id ? accounts.find((account) => account.id === id) : null;
     editingId = existing?.id ?? null;
     quoted.clear();
+    failed.clear();
     form.reset();
+    suggestHeld([], {});
     showErrors(form, 'account', fields, {});
     const hasMovements = existing && movements.some((m) => m.accountId === existing.id);
     renderTypes(existing?.type ?? 'bank', hasMovements ? accountKind(existing) : null);
@@ -265,6 +326,7 @@ export function createAccountDialog({ store, feed, onDone, onDelete }) {
   form.addEventListener('change', (event) => {
     if (event.target.name === 'account-type' || event.target === assetSelect) updateFields();
   });
+
 
   form.addEventListener('input', (event) => {
     const field = event.target.id?.replace('account-', '');
@@ -291,16 +353,17 @@ export function createAccountDialog({ store, feed, onDone, onDelete }) {
 
     const errors = {};
     let opening = null;
-    if (kind === 'crypto') {
+    if (isMarketKind(kind)) {
       const quantityText = form.querySelector('#account-quantity').value.trim();
       const paidText = form.querySelector('#account-paid').value.trim();
-      if (quantityText) {
-        const asset = assetSelect.value;
+      const asset = currentAsset(kind);
+      if (quantityText || (kind === 'stocks' && asset)) {
         const quantity = parseQuantity(quantityText);
-        // Uten "Betalt" brukes dagens kurs som kjøpspris – hent den hvis vi ikke har den ennå.
-        const price = paidText ? null : await feed.quote(asset);
+        // Kursen trengs både for å sjekke tickeren og som kjøpspris når "Betalt" står tomt.
+        const price = kind === 'stocks' && !isValidTicker(asset) ? undefined : await feed.quote(priceKey(kind, asset));
         const paid = paidText ? parseAmount(paidText) : price ? Math.round(quantity * price * 100) : 0;
-        if (Number.isNaN(quantity)) errors.quantity = 'Skriv inn et antall, f.eks. 0,005.';
+        if (kind === 'stocks' && price === undefined) errors.ticker = `Fant ikke kurs for ${asset || 'tickeren'}. Søk på navnet og velg fra listen.`;
+        if (Number.isNaN(quantity)) errors.quantity = quantityText ? 'Skriv inn et antall, f.eks. 0,005.' : 'Skriv inn hvor mange.';
         if (Number.isNaN(paid)) errors.paid = 'Skriv inn et tall, f.eks. 2 000.';
         opening = { asset, quantity, amount: paid };
       }
@@ -320,7 +383,8 @@ export function createAccountDialog({ store, feed, onDone, onDelete }) {
     const result = store.addAccount(input, opening);
     if (!result.ok) {
       const mapped = { ...result.errors };
-      if (kind === 'crypto' && mapped.amount) mapped.paid = mapped.amount;
+      if (isMarketKind(kind) && mapped.amount) mapped.paid = mapped.amount;
+      if (kind === 'stocks' && mapped.asset) mapped.ticker = mapped.asset;
       return showErrors(form, 'account', fields, mapped);
     }
     dialog.close();
@@ -345,18 +409,23 @@ export function createMovementDialog({ store, feed, onDone }) {
   const accountSelect = form.querySelector('#move-account');
   const kindsBox = form.querySelector('[data-slot="kinds"]');
   const assetSelect = form.querySelector('#move-asset');
+  const tickerInput = form.querySelector('#move-ticker');
   const quantityInput = form.querySelector('#move-quantity');
   const amountInput = form.querySelector('#move-amount');
   const counterSelect = form.querySelector('#move-counter');
-  const fields = ['account', 'kind', 'asset', 'quantity', 'amount', 'counter', 'date', 'note'];
+  const fields = ['account', 'kind', 'asset', 'ticker', 'quantity', 'amount', 'counter', 'date', 'note'];
   const quoted = new Set();
+  const failed = new Set();
   let touched = { quantity: false, amount: false };
 
   const state = () => store.getState();
   const currentAccount = () => state().accounts.find((account) => account.id === accountSelect.value) ?? null;
   const currentKind = () => form.querySelector('input[name="kind"]:checked')?.value ?? null;
   const currency = () => state().settings.currency;
-  const priceOf = (symbol) => feed.prices()[symbol]?.price;
+  const priceOf = (key) => feed.prices()[key]?.price;
+  const marketKind = () => accountKind(currentAccount());
+  const currentAsset = () => (marketKind() === 'stocks' ? normalizeTicker(tickerInput.value) : assetSelect.value);
+  const currentKey = () => priceKey(marketKind(), currentAsset());
 
   function heldOn(account) {
     return replayAccount(movementsFor(account.id, state().movements)).holdings;
@@ -416,8 +485,15 @@ export function createMovementDialog({ store, feed, onDone }) {
     const kindOfAccount = accountKind(account);
     const kind = currentKind();
     const crypto = kindOfAccount === 'crypto';
+    const stocks = kindOfAccount === 'stocks';
     show(form, 'asset', crypto);
-    show(form, 'quantity', crypto);
+    show(form, 'ticker', stocks);
+    show(form, 'quantity', crypto || stocks);
+    if (stocks) {
+      const held = Object.keys(heldOn(account));
+      suggestHeld(held, feed.prices());
+      if (kind === 'sell' && !tickerInput.value && held.length > 0) tickerInput.value = held[0];
+    }
     const labels = {
       deposit: kindOfAccount === 'debt' ? 'Hvor mye lånte du?' : 'Beløp satt inn',
       withdrawal: kindOfAccount === 'debt' ? 'Beløp betalt ned' : 'Beløp tatt ut',
@@ -438,18 +514,23 @@ export function createMovementDialog({ store, feed, onDone }) {
   /** Regner ut beløp fra antall (eller omvendt) med live-kurs, så lenge brukeren ikke har skrevet i det andre feltet. */
   function updateEstimate(source) {
     const account = currentAccount();
-    if (accountKind(account) !== 'crypto') return;
-    const asset = assetSelect.value;
-    const price = priceOf(asset);
+    const kind = accountKind(account);
+    if (!isMarketKind(kind)) return;
+    const asset = currentAsset();
+    const key = currentKey();
+    const price = priceOf(key);
     const held = heldOn(account)[asset] ?? 0;
-    const parts = [price ? `1 ${asset} ≈ ${formatPrice(price, currency())}` : 'Henter kurs …'];
-    if (currentKind() === 'sell') parts.push(held > 0 ? `du har ${formatQuantity(held)} ${asset}` : `du har ingen ${asset} her`);
-    form.querySelector('[data-slot="quantity-hint"]').textContent = parts.join(' · ');
+    const parts = [priceHint({ kind, asset, price, failed: failed.has(key), currency: currency(), prices: feed.prices() })];
+    if (asset && currentKind() === 'sell') parts.push(held > 0 ? `du har ${formatQuantity(held)} ${asset}` : `du har ingen ${asset} her`);
+    form.querySelector('[data-slot="quantity-hint"]').textContent = parts.filter(Boolean).join(' · ');
     if (!price) {
-      // En mynt appen ikke følger ennå: hent kursen én gang.
-      if (!quoted.has(asset)) {
-        quoted.add(asset);
-        feed.quote(asset).then(() => dialog.open && updateEstimate(source));
+      // En mynt eller aksje appen ikke følger ennå: hent kursen én gang.
+      if (asset && (kind === 'crypto' || isValidTicker(asset)) && !quoted.has(key)) {
+        quoted.add(key);
+        feed.quote(key).then((found) => {
+          if (found === undefined) failed.add(key);
+          if (dialog.open) updateEstimate(source);
+        });
       }
       return;
     }
@@ -468,6 +549,7 @@ export function createMovementDialog({ store, feed, onDone }) {
     form.reset();
     touched = { quantity: false, amount: false };
     quoted.clear();
+    failed.clear();
     showErrors(form, 'move', fields, {});
     renderAccounts(id);
     renderKinds(kind);
@@ -475,7 +557,8 @@ export function createMovementDialog({ store, feed, onDone }) {
     form.querySelector('[data-slot="currency"]').textContent = currencySymbol(currency());
     updateFields();
     dialog.showModal();
-    (accountKind(currentAccount()) === 'crypto' ? quantityInput : amountInput).focus();
+    const focusKind = accountKind(currentAccount());
+    (focusKind === 'stocks' && !tickerInput.value ? tickerInput : isMarketKind(focusKind) ? quantityInput : amountInput).focus();
   }
 
   form.addEventListener('change', (event) => {
@@ -489,6 +572,8 @@ export function createMovementDialog({ store, feed, onDone }) {
       updateEstimate(touched.amount && !touched.quantity ? 'amount' : 'quantity');
     }
   });
+
+  attachTickerSearch(tickerInput, feed, () => updateEstimate(touched.amount && !touched.quantity ? 'amount' : 'quantity'));
 
   form.addEventListener('input', (event) => {
     if (event.target === quantityInput) {
@@ -505,27 +590,35 @@ export function createMovementDialog({ store, feed, onDone }) {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const account = currentAccount();
-    const crypto = accountKind(account) === 'crypto';
+    const kind = accountKind(account);
+    const market = isMarketKind(kind);
     const amountText = amountInput.value.trim();
-    if (crypto && !amountText) await feed.quote(assetSelect.value); // kjøpspris = dagens kurs
+    const asset = currentAsset();
+    // Kursen trengs som kjøpspris når beløpet står tomt, og for å sjekke at en ny ticker finnes.
+    const price = market && (kind === 'crypto' || isValidTicker(asset)) ? await feed.quote(currentKey()) : undefined;
     const input = {
       accountId: account?.id,
       kind: currentKind(),
       date: form.querySelector('#move-date').value,
       note: form.querySelector('#move-note').value,
-      amount: amountText ? parseAmount(amountText) : crypto ? 0 : NaN,
+      amount: amountText ? parseAmount(amountText) : market ? 0 : NaN,
     };
-    if (crypto) {
-      input.asset = assetSelect.value;
+    if (market) {
+      input.asset = asset;
       input.quantity = parseQuantity(quantityInput.value);
-      if (!amountText && input.quantity > 0 && priceOf(input.asset)) input.amount = Math.round(input.quantity * priceOf(input.asset) * 100);
+      if (!amountText && input.quantity > 0 && price) input.amount = Math.round(input.quantity * price * 100);
     }
     const counterAccountId = form.querySelector('[data-for="counter"]').hidden ? null : counterSelect.value || null;
+    if (kind === 'stocks' && input.kind === 'buy' && price === undefined) {
+      showErrors(form, 'move', fields, { ticker: `Fant ikke kurs for ${asset || 'tickeren'}. Søk på navnet og velg fra listen.` });
+      return;
+    }
     const result = store.addMovement(input, { counterAccountId });
     if (!result.ok) {
       const errors = { ...result.errors, account: result.errors.accountId };
       if (Number.isNaN(input.amount)) errors.amount = amountText ? 'Skriv inn et tall, f.eks. 2 000 eller 129,90.' : 'Skriv inn et beløp.';
-      if (crypto && Number.isNaN(input.quantity)) errors.quantity = quantityInput.value.trim() ? 'Skriv inn et antall, f.eks. 0,005.' : 'Skriv inn hvor mange.';
+      if (market && Number.isNaN(input.quantity)) errors.quantity = quantityInput.value.trim() ? 'Skriv inn et antall, f.eks. 0,005.' : 'Skriv inn hvor mange.';
+      if (kind === 'stocks' && errors.asset) errors.ticker = errors.asset;
       showErrors(form, 'move', fields, errors);
       return;
     }

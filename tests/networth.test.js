@@ -1,6 +1,6 @@
 import { test, assert, assertDeepEqual, assertEqual } from './harness.js';
 import {
-  heldCoins,
+  heldAssets,
   holdingsValue,
   movementsFor,
   netWorthSeries,
@@ -113,8 +113,30 @@ test('summarizeNetWorth still works before any prices have been loaded', () => {
   assertDeepEqual(firi.missing.sort(), ['BTC', 'ETH']);
 });
 
-test('heldCoins lists the coins on all crypto accounts', () => {
-  assertDeepEqual(heldCoins(ACCOUNTS, MOVEMENTS), ['BTC', 'ETH']);
+test('heldAssets lists the price keys of everything on crypto and stock accounts', () => {
+  assertDeepEqual(heldAssets(ACCOUNTS, MOVEMENTS), ['BTC', 'ETH']);
+  const accounts = [...ACCOUNTS, { id: 'ask', name: 'ASK', type: 'stocks', institution: 'Nordnet' }];
+  const movements = [...MOVEMENTS, move('ask', 'buy', '2026-10-01', { asset: 'EQNR.OL', quantity: 10, amount: kr(4_000) })];
+  assertDeepEqual(heldAssets(accounts, movements), ['BTC', 'ETH', 'aksje:EQNR.OL']);
+});
+
+test('stock accounts are valued as shares × price, looked up under the "aksje:" key', () => {
+  const accounts = [
+    { id: 'ask', name: 'ASK', type: 'stocks', institution: 'Nordnet' },
+    { id: 'coin', name: 'Kryptokonto', type: 'crypto', institution: '' },
+  ];
+  const movements = [
+    move('ask', 'buy', '2026-10-01', { asset: 'EQNR.OL', quantity: 10, amount: kr(4_000) }),
+    move('ask', 'buy', '2026-10-02', { asset: 'LINK', quantity: 2, amount: kr(100) }),
+    move('coin', 'buy', '2026-10-02', { asset: 'LINK', quantity: 1, amount: kr(150) }),
+  ];
+  // LINK er både en aksje (Interlink) og en kryptomynt (Chainlink) – kursene må ikke blandes.
+  const prices = { 'aksje:EQNR.OL': { price: 437.8 }, 'aksje:LINK': { price: 60 }, LINK: { price: 160 } };
+  const summary = summarizeNetWorth(accounts, movements, prices);
+  const ask = summary.rows.find((row) => row.account.id === 'ask');
+  assertEqual(ask.value, kr(4_378) + kr(120));
+  assertEqual(ask.gain, kr(4_378) + kr(120) - kr(4_100));
+  assertEqual(summary.rows.find((row) => row.account.id === 'coin').value, kr(160));
 });
 
 test('netWorthSeries rebuilds the net worth day by day with the price of each day', () => {

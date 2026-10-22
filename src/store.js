@@ -1,7 +1,7 @@
 // Dataene i appen og alle måter å endre dem på: kontoer og bevegelser (formue),
 // transaksjoner og budsjetter (forbruk) og innstillinger. Hver endring sjekkes, lagres i
 // localStorage (bare i denne nettleseren) og varsles til siden slik at den tegnes på nytt.
-import { accountKind, findAccountType, findCoin } from './accounts.js';
+import { accountKind, findAccountType, findCoin, isMarketKind, isValidTicker } from './accounts.js';
 import { findCategory } from './categories.js';
 import { isValidISODate, todayISO } from './dates.js';
 import { CURRENCIES, formatQuantity } from './money.js';
@@ -85,10 +85,12 @@ export function validateMovement(m, account) {
   const errors = {};
   const kind = accountKind(account);
   if (!account) errors.accountId = 'Velg en konto.';
-  else if (m.kind === 'opening' ? kind === 'crypto' : !MOVEMENT_KINDS[kind].includes(m.kind)) errors.kind = 'Velg hva som skjedde.';
+  else if (m.kind === 'opening' ? isMarketKind(kind) : !MOVEMENT_KINDS[kind].includes(m.kind)) errors.kind = 'Velg hva som skjedde.';
 
   if (m.kind === 'buy' || m.kind === 'sell') {
-    if (!findCoin(m.asset)) errors.asset = 'Velg en kryptovaluta.';
+    if (kind === 'stocks' ? !isValidTicker(m.asset) : !findCoin(m.asset)) {
+      errors.asset = kind === 'stocks' ? 'Skriv inn en gyldig ticker, f.eks. EQNR.OL.' : 'Velg en kryptovaluta.';
+    }
     if (!(typeof m.quantity === 'number' && m.quantity > 0 && m.quantity <= MAX_QUANTITY)) errors.quantity = 'Skriv inn et antall større enn 0.';
     if (!Number.isInteger(m.amount) || m.amount < 0) errors.amount = 'Skriv inn et gyldig beløp.';
     else if (m.amount > MAX_AMOUNT) errors.amount = 'Beløpet er for stort.';
@@ -188,6 +190,13 @@ export function sanitizeState(raw) {
     }
   }
 
+  // Aksjekontoer var tidligere kontoer med verdi du skrev inn selv. Slike gamle kontoer flyttes
+  // til "Fond" (som fortsatt virker sånn), så verdiene ikke forsvinner.
+  const manualKinds = new Set(['opening', 'deposit', 'withdrawal', 'value']);
+  const manualStockAccounts = new Set(
+    list(raw.movements).filter((m) => m && manualKinds.has(m.kind)).map((m) => m.accountId),
+  );
+
   const accounts = new Map();
   for (const item of list(raw.accounts)) {
     if (!item || typeof item !== 'object') {
@@ -195,6 +204,7 @@ export function sanitizeState(raw) {
       continue;
     }
     const account = toAccount(item);
+    if (account.type === 'stocks' && manualStockAccounts.has(account.id)) account.type = 'fund';
     if (accounts.has(account.id) || hasErrors(validateAccount(account))) {
       skipped++;
       continue;
@@ -344,13 +354,13 @@ export function createStore(storage, { onSaveError = () => {} } = {}) {
       const errors = validateAccount(account);
       let movement = null;
       if (opening && !errors.type) {
-        const crypto = accountKind(account) === 'crypto';
+        const market = isMarketKind(accountKind(account));
         movement = toMovement({
           ...opening,
           accountId: account.id,
-          kind: crypto ? 'buy' : 'opening',
+          kind: market ? 'buy' : 'opening',
           date: opening.date ?? todayISO(),
-          note: crypto ? 'Startbeholdning' : 'Startsaldo',
+          note: market ? 'Startbeholdning' : 'Startsaldo',
         });
         Object.assign(errors, validateMovement(movement, account));
       }

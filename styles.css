@@ -2214,6 +2214,16 @@ a.tx-row {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* Bare tickeren i beholdningstabellen på mobil; navnet leses fortsatt av skjermlesere. */
+  .holding-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
   dialog.sheet,
   dialog.sheet-small {
     width: 100%;

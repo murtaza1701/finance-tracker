@@ -281,3 +281,35 @@ test('sanitizeState drops movements whose account no longer exists', () => {
   assertEqual(state.movements.length, 1);
   assertEqual(skipped, 2);
 });
+
+// ---------- Aksjer ----------
+
+test('a stock account starts with a purchase of shares and only accepts valid tickers', () => {
+  const store = createStore(memoryStorage());
+  const { account } = store.addAccount({ name: 'ASK', type: 'stocks', institution: 'Nordnet' }, { asset: 'EQNR.OL', quantity: 10, amount: 437_800, date: '2026-10-22' });
+  const first = store.getState().movements[0];
+  assertEqual(first.kind, 'buy');
+  assertEqual(first.note, 'Startbeholdning');
+  const bad = store.addMovement({ accountId: account.id, kind: 'buy', asset: 'not a ticker', quantity: 1, amount: 1, date: '2026-10-22', note: '' });
+  assert(bad.errors.asset.includes('ticker'), bad.errors.asset);
+  assert(!store.addMovement({ accountId: account.id, kind: 'value', amount: 100, date: '2026-10-22', note: '' }).ok, 'no manual values on stock accounts');
+  assert(store.addMovement({ accountId: account.id, kind: 'sell', asset: 'EQNR.OL', quantity: 4, amount: 180_000, date: '2026-10-22', note: '' }).ok);
+});
+
+test('old stock accounts with a value typed in by hand are moved to "Fond" so nothing is lost', () => {
+  const { state, skipped } = sanitizeState({
+    accounts: [
+      { id: 'old', name: 'Aksjesparekonto', type: 'stocks', institution: 'Nordnet' },
+      { id: 'new', name: 'ASK', type: 'stocks', institution: 'Nordnet' },
+    ],
+    movements: [
+      { id: 'm1', accountId: 'old', kind: 'opening', amount: 700_000, date: '2026-01-08', note: '' },
+      { id: 'm2', accountId: 'old', kind: 'value', amount: 760_000, date: '2026-03-26', note: '' },
+      { id: 'm3', accountId: 'new', kind: 'buy', asset: 'DNB.OL', quantity: 15, amount: 450_000, date: '2026-04-12', note: '' },
+    ],
+  });
+  assertEqual(skipped, 0);
+  assertEqual(state.accounts.find((a) => a.id === 'old').type, 'fund');
+  assertEqual(state.accounts.find((a) => a.id === 'new').type, 'stocks');
+  assertEqual(state.movements.length, 3);
+});

@@ -1,5 +1,5 @@
 import { test, assertDeepEqual, assertEqual } from './harness.js';
-import { parseGeckoHistory, parseGeckoPrices, parseMiniTicker, priceOnDate } from '../src/prices.js';
+import { parseGeckoHistory, parseGeckoPrices, parseMiniTicker, parseYahooHistory, parseYahooQuote, priceOnDate } from '../src/prices.js';
 
 test('parseGeckoPrices maps CoinGecko ids to coin symbols', () => {
   const json = {
@@ -46,4 +46,27 @@ test('priceOnDate uses the price of that day, or the closest earlier day', () =>
   assertEqual(priceOnDate(points, '2026-12-31'), 500);
   assertEqual(priceOnDate(points, '2026-01-01'), 100, 'before the history: the first price');
   assertEqual(priceOnDate([], '2026-10-01'), undefined);
+});
+
+test('parseYahooQuote reads the price, name, currency and change since yesterday', () => {
+  const json = { chart: { result: [{ meta: { symbol: 'EQNR.OL', longName: 'Equinor ASA', currency: 'NOK', regularMarketPrice: 437.8, chartPreviousClose: 434.3 } }] } };
+  const quote = parseYahooQuote(json);
+  assertEqual(quote.name, 'Equinor ASA');
+  assertEqual(quote.currency, 'NOK');
+  assertEqual(quote.price, 437.8);
+  assertEqual(Math.round(quote.change24h * 100) / 100, 0.81);
+  assertEqual(parseYahooQuote({ chart: { result: null, error: { code: 'Not Found' } } }), null);
+});
+
+test('parseYahooQuote turns London prices in pence into pounds', () => {
+  const quote = parseYahooQuote({ chart: { result: [{ meta: { symbol: 'VOD.L', currency: 'GBp', regularMarketPrice: 72.5 } }] } });
+  assertEqual(quote.currency, 'GBP');
+  assertEqual(quote.price, 0.725);
+});
+
+test('parseYahooHistory keeps one closing price per trading day and skips empty days', () => {
+  const day = (iso) => new Date(`${iso}T09:00:00`).getTime() / 1000;
+  const json = { chart: { result: [{ meta: { currency: 'NOK' }, timestamp: [day('2026-10-21'), day('2026-10-20'), day('2026-10-22')], indicators: { quote: [{ close: [433.1, null, 437.8] }] } }] } };
+  assertDeepEqual(parseYahooHistory(json), [['2026-10-21', 433.1], ['2026-10-22', 437.8]]);
+  assertDeepEqual(parseYahooHistory({}), []);
 });

@@ -1,11 +1,11 @@
 // Formue: alt du eier og skylder samlet, med kryptoverdier som følger markedet i sanntid.
-import { ACCOUNT_TYPES, findCoin } from '../accounts.js';
+import { ACCOUNT_TYPES, assetName, findCoin, isStockKey, tickerOf } from '../accounts.js';
 import { historyTable, mountLineChart } from '../charts.js';
 import { dateLabel } from '../dates.js';
 import { html } from '../html.js';
 import { icon, logo } from '../icons.js';
 import { formatMoney, formatPrice } from '../money.js';
-import { byDate, firstMovementDate, heldCoins, netWorthSeries, rangeStart, seriesChange, summarizeNetWorth } from '../networth.js';
+import { byDate, firstMovementDate, heldAssets, netWorthSeries, rangeStart, seriesChange, summarizeNetWorth } from '../networth.js';
 import { updateLiveValues } from './live.js';
 import { changeText, gainRatioText, gainText, holdingsText, liveChip, movementRow, pageHeader, trendClass } from './shared.js';
 
@@ -63,7 +63,7 @@ export function renderNetWorth(ctx) {
   const currency = settings.currency;
   const prices = feed.prices();
   const summary = summarizeNetWorth(accounts, movements, prices);
-  const coins = heldCoins(accounts, movements);
+  const assets = heldAssets(accounts, movements);
   const series = historyFor(ctx, accounts);
   const change = seriesChange(series);
   const money = (minor, options) => formatMoney(minor, currency, { whole: true, ...options });
@@ -78,7 +78,7 @@ export function renderNetWorth(ctx) {
     <section class="card hero" aria-labelledby="hero-label">
       <div class="hero-top">
         <p class="hero-label" id="hero-label">Nettoformue</p>
-        ${coins.length > 0 ? liveChip(feed) : ''}
+        ${assets.length > 0 ? liveChip(feed) : ''}
       </div>
       <p class="hero-value" data-live="total">${money(summary.total)}</p>
       <p class="hero-note">
@@ -125,7 +125,7 @@ export function renderNetWorth(ctx) {
       </section>
 
       <div class="stack">
-        ${coins.length > 0 ? pricesCard(coins, prices, feed, currency) : ''}
+        ${assets.length > 0 ? pricesCard(assets, prices, feed, currency) : ''}
         <section class="card">
           <header class="card-header">
             <div>
@@ -151,8 +151,8 @@ export function mountNetWorth(container, ctx) {
   }
   cleanups.push(ctx.feed.subscribe(() => updateLiveValues(container, ctx.state, ctx.feed)));
   // Hent historiske kurser til grafen; tegn siden på nytt hvis det kom noe nytt.
-  const coins = heldCoins(ctx.state.accounts, ctx.state.movements);
-  if (coins.length > 0) ctx.feed.loadHistory(coins).then((changed) => changed && ctx.rerender());
+  const assets = heldAssets(ctx.state.accounts, ctx.state.movements);
+  if (assets.length > 0) ctx.feed.loadHistory(assets).then((changed) => changed && ctx.rerender());
   return () => cleanups.forEach((cleanup) => cleanup());
 }
 
@@ -198,27 +198,31 @@ function accountGroups(summary, currency, money) {
   })}`;
 }
 
-function pricesCard(coins, prices, feed, currency) {
+function pricesCard(keys, prices, feed, currency) {
   return html`<section class="card">
     <header class="card-header">
       <div>
         <h2 class="card-title">Kurser</h2>
-        <p class="card-subtitle">Myntene du eier · endring siste døgn</p>
+        <p class="card-subtitle">Det du eier · endring siden i går</p>
       </div>
       ${liveChip(feed)}
     </header>
     <ul class="price-list">
-      ${coins.map((symbol) => {
-        const price = prices[symbol];
+      ${keys.map((key) => {
+        const price = prices[key];
+        const stock = isStockKey(key);
+        const symbol = tickerOf(key);
+        const name = stock ? assetName('stocks', symbol, prices) : findCoin(key).name;
         return html`<li class="price-row">
-          <span class="coin-badge" aria-hidden="true">${symbol}</span>
-          <span class="coin-name">${findCoin(symbol).name}<span class="visually-hidden"> (${symbol})</span></span>
-          <span class="coin-price" data-live-price="${symbol}">${price ? formatPrice(price.price, currency) : '–'}</span>
-          <span class="change ${trendClass(price?.change24h)}" data-live-change="${symbol}">${changeText(price?.change24h)}</span>
+          <span class="coin-badge" aria-hidden="true">${stock ? symbol.replace(/\.[A-Z]+$/, '') : symbol}</span>
+          <span class="coin-name">${name}<span class="visually-hidden"> (${symbol})</span></span>
+          <span class="coin-price" data-live-price="${key}">${price ? formatPrice(price.price, currency) : '–'}</span>
+          <span class="change ${trendClass(price?.change24h)}" data-live-change="${key}">${changeText(price?.change24h)}</span>
         </li>`;
       })}
     </ul>
-    <p class="chart-note">Kurser fra Binance (sanntid) og CoinGecko. Bare kursene hentes – hva du eier, sendes aldri noe sted.</p>
+    <p class="chart-note">Krypto fra Binance (sanntid) og CoinGecko, aksjer fra Yahoo Finance (ca. 15 min forsinket).
+      Bare kursene hentes – hva du eier, sendes aldri noe sted.</p>
   </section>`;
 }
 

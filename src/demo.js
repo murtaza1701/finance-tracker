@@ -16,7 +16,7 @@ const NOTES = {
 };
 
 // Brukes bare hvis kursene ikke kunne hentes (f.eks. uten nett).
-const FALLBACK_PRICES = { BTC: 760_000, ETH: 22_500, SOL: 1_400, USDT: 9.4 };
+const FALLBACK_PRICES = { BTC: 760_000, ETH: 22_500, SOL: 1_400, USDT: 9.4, 'aksje:EQNR.OL': 440, 'aksje:DNB.OL': 310 };
 
 /** mulberry32 – en liten, kjent tilfeldighetsgenerator. */
 function seededRandom(seed) {
@@ -32,8 +32,8 @@ function seededRandom(seed) {
 
 /**
  * Eksempeldata for begge delene av appen: transaksjoner og budsjetter (forbruk, 6 måneder)
- * og kontoer med bevegelser (formue, 12 måneder). priceOn(symbol, dato) gir historiske
- * kryptokurser, så kjøpene får realistiske antall.
+ * og kontoer med bevegelser (formue, 12 måneder). priceOn(nøkkel, dato) gir historiske kurser
+ * for krypto og aksjer, så kjøpene får realistiske antall og priser.
  */
 export function generateDemoData({ today = new Date(), months = 6, seed = 298, priceOn = null } = {}) {
   return { ...generateSpending({ today, months, seed }), ...generateNetWorth({ today, seed: seed + 1, priceOn }) };
@@ -140,6 +140,9 @@ function generateNetWorth({ today, seed, priceOn }) {
     const quantity = Math.round((kroner / price(symbol, date)) * 1e8) / 1e8;
     move(target, 'buy', date, { asset: symbol, quantity, amount: kr(kroner), note });
   };
+  const buyShares = (target, ticker, date, shares, note) => {
+    move(target, 'buy', date, { asset: ticker, quantity: shares, amount: kr(shares * price(`aksje:${ticker}`, date)), note });
+  };
 
   const bank = account('Brukskonto', 'bank', 'DNB');
   const bsu = account('BSU', 'savings', 'DNB');
@@ -156,7 +159,6 @@ function generateNetWorth({ today, seed, priceOn }) {
   move(loan, 'opening', first, { amount: kr(72_000), note: 'Startsaldo' });
   let bsuValue = 41_000;
   let fundValue = 18_600;
-  let stockValue = 7_000;
   let loanValue = 72_000;
 
   for (let i = 0; i <= 12; i++) {
@@ -179,11 +181,10 @@ function generateNetWorth({ today, seed, priceOn }) {
       move(fund, 'value', dayOf(month, 28), { amount: kr(fundValue), note: 'Verdi fra Nordnet' });
     }
 
-    if (i === 2) move(stocks, 'opening', dayOf(month, 8), { amount: kr(stockValue), note: 'Kjøpte Equinor og DNB' });
-    if (i > 2 && i % 2 === 0) {
-      stockValue = Math.round(stockValue * (1 + between(-0.09, 0.09)));
-      move(stocks, 'value', dayOf(month, 26), { amount: kr(stockValue), note: 'Verdi fra Nordnet' });
-    }
+    // Aksjer: hele aksjer, kjøpt til kursen den dagen
+    if (i === 2) buyShares(stocks, 'EQNR.OL', dayOf(month, 8), 10, 'Kjøpte Equinor');
+    if (i === 6) buyShares(stocks, 'DNB.OL', dayOf(month, 12), 15, 'Kjøpte DNB');
+    if (i === 10) buyShares(stocks, 'EQNR.OL', dayOf(month, 9), 5, 'Kjøpte flere Equinor');
 
     // Fast månedlig kjøp av krypto på Firi
     buy(firi, 'BTC', dayOf(month, 10), 500, 'Spareavtale');

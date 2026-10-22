@@ -1,13 +1,14 @@
 # Pengeflyt – formue og forbruk på ett sted
 
 **Pengeflyt** samler hele formuen din på ett sted: bankkontoer, sparing og BSU, fond, aksjer, krypto
-(f.eks. Firi og Binance) og gjeld som studielån. Kryptoverdiene følger markedet **i sanntid**, og når du
+(f.eks. Firi og Binance) og gjeld som studielån. Kryptoverdiene følger markedet **i sanntid** og aksjene
+følger kursene på børsen (ca. 15 minutter forsinket), og når du
 setter inn eller tar ut penger, oppdateres totalen med en gang. Appen viser også hvordan formuen har
 utviklet seg over tid og hvor mye avkastning fond, aksjer og krypto har gitt. I tillegg kan du følge
 forbruket ditt måned for måned og sette budsjetter per kategori.
 
 Appen kjører helt i nettleseren. Det finnes ingen konto, innlogging eller server, og dataene dine forlater
-aldri maskinen (de lagres i nettleserens `localStorage`). Bare kryptokursene hentes fra nettet.
+aldri maskinen (de lagres i nettleserens `localStorage`). Bare kurser hentes fra nettet.
 
 > Laget i Oppgave 3 i *Intro til KI* (vibe coding): appen er planlagt, skrevet, testet og forbedret sammen
 > med en KI-kodeagent. Se [Slik ble KI brukt](#slik-ble-ki-brukt).
@@ -22,15 +23,18 @@ aldri maskinen (de lagres i nettleserens `localStorage`). Bare kryptokursene hen
 
 **2. Innskudd, uttak og overføringer**
 - Registrer innskudd, uttak eller ny saldo/verdi med et par trykk; totalen oppdateres med en gang
-- Kryptokjøp og -salg: skriv antall *eller* beløp, så regner appen ut det andre med live-kursen
+- Kjøp og salg av krypto og aksjer: skriv antall *eller* beløp, så regner appen ut det andre med kursen
 - Overføringer: velg «Pengene kom fra Brukskonto», så trekkes beløpet fra banken automatisk og formuen
   telles ikke dobbelt
 - Du kan ikke selge flere mynter enn du har, og alt kan slettes og angres (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>)
 
-**3. Live kryptokurser**
-- Ny pris hvert sekund fra Binance (WebSocket), regnet om til kroner med kursen fra CoinGecko
+**3. Live kurser for krypto og aksjer**
+- Krypto: ny pris hvert sekund fra Binance (WebSocket), regnet om til kroner med kursen fra CoinGecko
+- Aksjer: kurser fra Yahoo Finance hvert minutt (ca. 15 min forsinket), via en liten Cloudflare Worker
+  (se [cloudflare/](cloudflare/README.md)). Søk på navnet («Equinor») og velg fra listen; utenlandske aksjer
+  regnes om til kroner (f.eks. Apple fra USD)
 - Tallene som endres, blinker kort grønt eller rødt, og et «Live»-merke viser at strømmen er aktiv
-- Historiske dagskurser fra CoinGecko brukes i grafen, så kryptoverdien bakover i tid blir riktig
+- Historiske dagskurser brukes i grafen, så verdien bakover i tid blir riktig
 - Ingen innlogging eller API-nøkler: appen spør bare om kurser, aldri om hva du eier
 
 **Forbruk og budsjett** (fra første versjon av appen)
@@ -58,7 +62,7 @@ Dobbeltklikker du `index.html`, får du en melding som forklarer hvordan appen s
 
 ## Tester
 
-105 enhetstester dekker beregningene, tolkning av tall, lagring, overføringer, kurser og eksport.
+112 enhetstester dekker beregningene, tolkning av tall, lagring, overføringer, kurser og eksport.
 
 - **I nettleseren:** start serveren og åpne **http://localhost:8000/tests/**
 - **I terminalen på Mac** (med JavaScript-motoren som følger med macOS):
@@ -84,11 +88,12 @@ Vanlig HTML, CSS og JavaScript (ES-moduler) – ingen rammeverk, ingen byggesteg
 index.html            sideskall: meny og dialoger
 styles.css            all stil, lyst/mørkt tema og mobilvisning
 serve.py              liten lokal webserver
+cloudflare/worker.js  Cloudflare Worker som henter aksjekurser fra Yahoo (med oppsett i cloudflare/README.md)
 src/
   app.js              startpunkt: ruting (#/formue …), tegning av sider, knapper og kursstrøm
   store.js            dataene: kontoer, bevegelser, transaksjoner, budsjetter; sjekk og lagring
   networth.js         formueberegninger: saldo fra bevegelser, avkastning, formue dag for dag
-  prices.js           kryptokurser: Binance (sanntid), CoinGecko (kroner, døgnendring, historikk)
+  prices.js           kurser: Binance (sanntid), CoinGecko (krypto i kroner, historikk), Yahoo via Workeren (aksjer)
   accounts.js         kontotyper og kryptovalutaer
   finance.js          forbruksberegninger: måneder, kategorier, budsjetter, forslag
   money.js, dates.js  tall, kroner og datoer på norsk
@@ -111,6 +116,10 @@ Noen valg som er tatt:
 - **Ingen hemmeligheter i koden.** Automatisk henting av saldo fra bank (krever lisensiert PSD2-aktør og
   BankID) og fra Binance/Firi (krever API-nøkler som må holdes hemmelige) ble bevisst valgt bort; åpne
   kursdata gir sanntid uten nøkler.
+- **Aksjekurser via egen Worker.** Yahoo Finance tillater ikke at nettsider leser kursene direkte (de sender
+  ingen CORS-tillatelse), men en server kan. Workeren hos Cloudflare er en gratis mellomstasjon som bare
+  slipper gjennom til denne appen. Aksjer og mynter lagres med ulike nøkler (`aksje:EQNR.OL` og `BTC`),
+  så en ticker aldri blandes med en mynt med samme navn.
 - **Alt brukeren skriver blir «escapet»** før det vises (`src/html.js`), og CSV-eksporten hindrer at
   regneark kjører tekst som formler.
 - **Fargene i grafene** er sjekket for kontrast og fargeblindhet, og status vises aldri bare med farge
@@ -137,6 +146,11 @@ i prosjektmappen.
    oversatt til norsk (også dato- og tallformat og CSV).
 6. **Testing i ekte nettleser.** KI-en klikket gjennom alle funksjonene på PC- og mobilstørrelse og i lyst
    og mørkt tema, leste av siden og tok skjermbilder. Feil den fant, ble rettet og testet på nytt.
+7. **Aksjekurser.** Jeg spurte om aksjer og fond også kunne følges. KI-en testet seks kurskilder: Yahoo og
+   Stooq ble blokkert i nettleseren, Euronext sendte krypterte data, og Finnhub/Twelve Data krevde nøkkel.
+   Den viste at Yahoo svarte fint fra en server, forklarte hvorfor (CORS), og skrev en Cloudflare Worker
+   som mellomstasjon. Jeg satte den opp i Cloudflare, og KI-en testet den (også at andre nettsider blir
+   avvist) før den bygde aksjestøtten i appen.
 
 ## Testing
 
@@ -157,6 +171,9 @@ CSV-eksport og eksempeldata.
 | Salg av mer BTC enn kontoen har gir feilmelding | ✅ |
 | Sletting av bevegelse og angring | ✅ |
 | Eksempeldata med ekte historiske kurser; graf med 366 dager; fordeling og avkastning | ✅ |
+| Aksjer: søk «apple» → Apple (NASDAQ), kurs regnet om fra USD; 2 aksjer gir riktig beløp | ✅ |
+| Ny aksjekonto: søk «kongsberg» → KOG.OL, første kjøp til dagens kurs | ✅ |
+| Kjøp av en ticker som ikke finnes, gir feilmelding | ✅ |
 | Forbruk, transaksjoner, budsjett og innstillinger på norsk | ✅ |
 | Ingen side kan rulles sidelengs på mobil; dialogene vises som bunnark | ✅ |
 
@@ -170,18 +187,20 @@ CSV-eksport og eksempeldata.
 4. Dialogene kunne gått i **løkke** hvis kurshentingen feilet (funnet ved gjennomgang).
 5. Blinkingen ved kursendringer var **for kraftig** (hele blokker ble farget); nå blinker bare tallet.
 6. Lange antall som `51,6865696 USDT` i oversikten; nå `51,69 USDT` (full presisjon på kontosiden).
+7. Beholdningstabellen måtte rulles sidelengs på mobil; nå vises bare tickeren der (navnet leses fortsatt av
+   skjermlesere).
 
 Fra første versjon:
-7. **Slett**-knappen synlig i «ny transaksjon» (CSS overstyrte `hidden`).
-8. **Negative beløp ble rundet annerledes** (`Math.round(-1234.5)` er `-1234`); nå finnes en test for det.
-9. Ved **redigering ble nytt beløp lagt til bak det gamle**; nå markeres beløpet når dialogen åpnes.
-10. **Dialogen var bredere enn mobilskjermen** (standardbredden til et `<input>`).
-11. **Den lokale serveren hang ved oppstart** på enkelte nettverk (navneoppslag i Python).
+8. **Slett**-knappen synlig i «ny transaksjon» (CSS overstyrte `hidden`).
+9. **Negative beløp ble rundet annerledes** (`Math.round(-1234.5)` er `-1234`); nå finnes en test for det.
+10. Ved **redigering ble nytt beløp lagt til bak det gamle**; nå markeres beløpet når dialogen åpnes.
+11. **Dialogen var bredere enn mobilskjermen** (standardbredden til et `<input>`).
+12. **Den lokale serveren hang ved oppstart** på enkelte nettverk (navneoppslag i Python).
 
 ## Videre arbeid
 
 - Faste overføringer (f.eks. BSU-sparing den 20. hver måned) som legges inn automatisk
-- Kurser for aksjer og fond (krever en kursleverandør med nøkkel, via en liten server)
+- Fondskurser (Yahoo har fondene bare som koder uten navn, f.eks. `0P0001R2QD.IR`)
 - Sparemål («ny PC: 4 500 av 12 000 kr»)
 - Import av kontoutskrift (CSV) fra banken
 - Installere som app på mobilen og bruke den uten nett (PWA)
