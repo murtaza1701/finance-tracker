@@ -10,7 +10,8 @@ setter inn eller tar ut penger, oppdateres totalen med en gang. Appen viser ogs�
 utviklet seg over tid og hvor mye avkastning fond, aksjer og krypto har gitt. I tillegg kan du følge
 forbruket ditt måned for måned og sette budsjetter per kategori.
 
-Appen har fire hovedsider: **Oversikt** (bare formuen og en graf), **Bank**, **Aksjer og fond** og **Krypto**.
+Appen har fire hovedsider: **Oversikt** (formuen, en graf og summen for hver side), **Bank**, **Aksjer og fond**
+og **Krypto**.
 Oppsettet er inspirert av hvordan en nettbank (som DNB), en aksjemegler (som Nordnet) og en kryptobørs (som
 Firi og Binance) viser kontoene dine, men appen har egne farger og bruker ingen logoer eller kode fra dem.
 
@@ -24,14 +25,14 @@ aldri maskinen (de lagres i nettleserens `localStorage`). Bare kurser hentes fra
 
 | Oversikt | Bank |
 |---|---|
-| ![Oversikt: formuen og en graf over det siste året](docs/skjermbilder/oversikt.png) | ![Bank: totalt på kontoene, snarveier og kontoene](docs/skjermbilder/bank.png) |
+| ![Oversikt: formuen, en graf over det siste året og summen for Bank, Aksjer og fond og Krypto](docs/skjermbilder/oversikt.png) | ![Bank: totalt på kontoene, snarveier og kontoene](docs/skjermbilder/bank.png) |
 | **Aksjer og fond** | **Krypto** |
 | ![Aksjer og fond: totalverdi, endring i dag, avkastning og graf](docs/skjermbilder/aksjer.png) | ![Krypto: total verdi i sanntid, endring siste døgn og graf](docs/skjermbilder/krypto.png) |
 
 På mobil (lyst tema): forsiden, aksjene og fondene, og kryptoeiendelene med markedslisten.
 
 <p>
-  <img src="docs/skjermbilder/mobil-oversikt.png" width="250" alt="Forsiden på mobil: formuen og grafen">
+  <img src="docs/skjermbilder/mobil-oversikt.png" width="250" alt="Forsiden på mobil: formuen, grafen og summen for hver side">
   <img src="docs/skjermbilder/mobil-aksjer.png" width="250" alt="Aksjer og fond på mobil: aksjetabell, fond og kontoer">
   <img src="docs/skjermbilder/mobil-krypto.png" width="250" alt="Krypto på mobil: dine eiendeler og markedslisten">
 </p>
@@ -41,9 +42,11 @@ På mobil (lyst tema): forsiden, aksjene og fondene, og kryptoeiendelene med mar
 ## Funksjoner
 
 **1. Oversikt (forsiden)**
-- Bare nettoformuen (eiendeler minus gjeld) og en graf over hvordan den har beveget seg
+- Nettoformuen (eiendeler minus gjeld) og en graf over hvordan den har beveget seg
 - Velg periode (1 uke, 1 måned, 3 måneder, 6 måneder, 1 år eller alt) og se endringen i kroner og prosent;
   grafen kan også vises som tabell
+- Summen for **Bank**, **Aksjer og fond** og **Krypto** under grafen, med lån og endringen i dag, så du
+  raskt ser hvor pengene ligger; trykk på en av dem for å gå til siden
 
 **2. Bank** – bygd opp som en nettbank
 - Totalt på kontoene, med snarveier for **Overfør**, **Sett inn**, **Ta ut** og **Ny saldo**
@@ -102,7 +105,7 @@ Dobbeltklikker du `index.html`, får du en melding som forklarer hvordan appen s
 
 ## Tester
 
-116 enhetstester dekker beregningene, tolkning av tall, lagring, overføringer, kurser og eksport.
+118 enhetstester dekker beregningene, tolkning av tall, lagring, overføringer, kurser og eksport.
 
 - **På nettsiden:** åpne **https://murtaza1701.github.io/finance-tracker/tests/** (testene bruker ikke
   dataene dine)
@@ -205,7 +208,7 @@ i prosjektmappen.
 
 ## Testing
 
-**Automatisk:** 116 enhetstester (`tests/`) for blant annet tolkning av beløp og antall, norsk tallformat,
+**Automatisk:** 118 enhetstester (`tests/`) for blant annet tolkning av beløp og antall, norsk tallformat,
 datoer over måneds- og årsskifter, saldo fra bevegelser, avkastning, snittkurs (GAV), endring i dag,
 formue dag for dag med historiske kurser, overføringer (begge sider, sletting og angring), salg av flere
 mynter enn man har, tolkning av svar fra CoinGecko og Binance, budsjetter, lagring (også ødelagte data og
@@ -232,6 +235,7 @@ full lagring), sikkerhetskopier, CSV-eksport og eksempeldata.
 | Aksjer og fond: «Kjøp» åpner aksjekontoen med aksjesøk; tabellen og fondene passer på 375 px | ✅ |
 | Krypto: «Kjøp» i markedslisten åpner riktig mynt; kjøp av XRP for 200 kr regner ut antallet | ✅ |
 | Fanene under Bank og «Tilbake»-lenkene på kontosidene går til riktig side | ✅ |
+| Forsiden: Bank + Aksjer og fond + Krypto − lån går opp i formuen, og flisene lenker til riktig side | ✅ |
 
 **Feil som ble funnet under testing og gjennomgang (alle rettet):**
 

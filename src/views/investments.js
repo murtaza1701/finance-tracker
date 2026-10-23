@@ -4,7 +4,7 @@ import { accountsIn, assetName } from '../accounts.js';
 import { html } from '../html.js';
 import { icon } from '../icons.js';
 import { formatMoney, formatPrice, formatQuantity } from '../money.js';
-import { dayChange, heldAssets, holdingsOverview, summarizeNetWorth } from '../networth.js';
+import { dayChange, hasPrices, heldAssets, holdingsOverview, summarizeNetWorth } from '../networth.js';
 import { historyChart, historyFor, mountHistory } from './history.js';
 import { updateLiveValues } from './live.js';
 import { accountRows, changeText, emptyState, gainText, liveChip, newAccountButton, pageHeader, stockIcon, trendClass } from './shared.js';
@@ -52,7 +52,7 @@ export function renderInvestments(ctx) {
       <dl class="portfolio-stats">
         <div>
           <dt>I dag</dt>
-          <dd class="delta-value ${trendClass(day.amount)}" data-live-day="investments">${holdings.length > 0 ? gainText(day.amount, day.ratio, currency) : '–'}</dd>
+          <dd class="delta-value ${trendClass(day.amount)}" data-live-day="investments">${hasPrices(holdings) ? gainText(day.amount, day.ratio, currency) : '–'}</dd>
         </div>
         <div>
           <dt>Avkastning</dt>

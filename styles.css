@@ -1891,6 +1891,70 @@ fieldset {
   margin-top: 6px;
 }
 
+/* Forsiden: én flis per side (Bank, Aksjer og fond, Krypto) med summen */
+.section-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.section-tile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "head arrow"
+    "value value"
+    "note note";
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.section-tile:hover {
+  border-color: var(--border-strong);
+}
+
+.section-tile-head {
+  display: flex;
+  grid-area: head;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.section-tile-arrow {
+  display: flex;
+  grid-area: arrow;
+  color: var(--text-3);
+}
+
+.section-tile-value {
+  grid-area: value;
+  margin-top: 4px;
+  font-size: 26px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.section-tile-note {
+  grid-area: note;
+  color: var(--text-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
 .delta-pill {
   display: inline-flex;
   align-items: center;
@@ -2525,6 +2589,25 @@ a.tx-row {
 
   .overview {
     padding: 18px;
+  }
+
+  /* Flisene under hverandre, som rader: navn og sum på én linje, lån/endring under */
+  .section-tiles {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .section-tile {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "head value arrow"
+      "note note note";
+    padding: 14px 16px;
+  }
+
+  .section-tile-value {
+    margin-top: 0;
+    font-size: 20px;
   }
 
   /* Fanene deler bredden, så alle fire får plass på en smal telefon */

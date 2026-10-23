@@ -211,6 +211,9 @@ export function holdingsOverview(accounts, movements, prices = {}) {
     .sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || a.key.localeCompare(b.key));
 }
 
+/** Har minst én aksje eller mynt fått kurs? Før det er endringen i dag ukjent («–», ikke 0 kr). */
+export const hasPrices = (holdings) => holdings.some((holding) => holding.value !== null);
+
 /**
  * Hvor mye beholdningen har endret seg siste døgn (krypto) eller siden i går (aksjer), ut fra kursene.
  * Med `total` (hele porteføljen, også fond uten dagskurs) regnes prosenten av alt, ikke bare av det som har kurs.

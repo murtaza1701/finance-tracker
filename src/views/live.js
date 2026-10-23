@@ -3,7 +3,7 @@
 // Elementer merkes med data-live-* i markupen; endrede tall blinker kort grønt eller rødt.
 import { accountsIn, isMarketKind, priceKey } from '../accounts.js';
 import { formatMoney, formatPrice } from '../money.js';
-import { dayChange, holdingsOverview, summarizeNetWorth } from '../networth.js';
+import { dayChange, hasPrices, holdingsOverview, summarizeNetWorth } from '../networth.js';
 import { changeText, gainText, liveStatus, trendClass } from './shared.js';
 
 function setLive(element, text, value = null) {
@@ -48,8 +48,8 @@ export function updateLiveValues(container, state, feed) {
     const holdings = holdingsOverview(accounts, state.movements, prices);
     const day = dayChange(holdings, summary.total);
     setLive(find(`[data-live-section="${section}"]`), money(summary.total), summary.total);
-    // Uten aksjer eller mynter (bare fond) står "I dag" som "–", som når siden tegnes.
-    if (holdings.length > 0) {
+    // Uten aksjer eller mynter med kurs (bare fond, eller kursene lastes) står "I dag" som "–", som når siden tegnes.
+    if (hasPrices(holdings)) {
       const dayElement = find(`[data-live-day="${section}"]`);
       setLive(dayElement, gainText(day.amount, day.ratio, currency));
       setTrend(dayElement, day.amount);

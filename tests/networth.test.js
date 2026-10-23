@@ -1,6 +1,7 @@
 import { test, assert, assertDeepEqual, assertEqual } from './harness.js';
 import {
   dayChange,
+  hasPrices,
   heldAssets,
   holdingsCost,
   holdingsOverview,
@@ -210,4 +211,10 @@ test('dayChange works out the change since yesterday from the price changes', ()
   const withFund = dayChange([{ value: kr(10_200), change24h: 2 }], kr(30_100));
   assertEqual(withFund.amount, kr(200));
   assertEqual(Math.round(withFund.ratio * 10_000) / 10_000, 0.0067);
+});
+
+test('hasPrices tells whether the change today is known yet', () => {
+  assertEqual(hasPrices([]), false, 'nothing held');
+  assertEqual(hasPrices([{ value: null, change24h: null }]), false, 'prices still loading');
+  assertEqual(hasPrices([{ value: null }, { value: kr(5_000), change24h: 1 }]), true);
 });

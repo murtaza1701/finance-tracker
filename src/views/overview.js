@@ -1,8 +1,10 @@
-// Oversikt (forsiden): bare formuen din og en graf over hvordan den beveger seg.
+// Oversikt (forsiden): formuen din, en graf over hvordan den beveger seg, og summen for hver side
+// (Bank, Aksjer og fond, Krypto) så du raskt ser hvor pengene ligger.
+import { SECTIONS, accountsIn } from '../accounts.js';
 import { html } from '../html.js';
 import { icon, logo } from '../icons.js';
 import { formatMoney } from '../money.js';
-import { heldAssets, seriesChange, summarizeNetWorth } from '../networth.js';
+import { dayChange, hasPrices, heldAssets, holdingsOverview, seriesChange, summarizeNetWorth } from '../networth.js';
 import { historyChart, historyFor, mountHistory, rangeText } from './history.js';
 import { updateLiveValues } from './live.js';
 import { gainText, liveChip, trendClass } from './shared.js';
@@ -29,7 +31,56 @@ export function renderOverview(ctx) {
         : html`<span class="muted">Bank, sparing, aksjer, fond og krypto – minus gjeld.</span>`}
     </p>
     ${historyChart(ctx, series, { label: 'Formue', chartId: 'overview' })}
+  </section>
+  ${sectionTiles(ctx)}`;
+}
+
+/**
+ * Én flis per side med de samme tallene som øverst på siden. Bank viser lånene under, så
+ * flisene går opp i formuen: Bank + Aksjer og fond + Krypto − lån.
+ */
+function sectionTiles({ state, feed }) {
+  const currency = state.settings.currency;
+  const prices = feed.prices();
+  const money = (minor) => formatMoney(minor, currency, { whole: true });
+  const summaryOf = (key) => summarizeNetWorth(accountsIn(key, state.accounts), state.movements, prices);
+
+  const bank = summaryOf('bank');
+  const count = bank.rows.filter((row) => row.kind !== 'debt').length;
+  let bankNote = count === 0 ? 'Ingen kontoer ennå' : `${count} ${count === 1 ? 'konto' : 'kontoer'}`;
+  if (bank.debts > 0) bankNote = `Lån ${money(-bank.debts)}`;
+
+  /** Aksjer og fond, og Krypto: verdien og endringen i dag, som følger kursene (views/live.js). */
+  const marketTile = (key, iconName, dayLabel) => {
+    const accounts = accountsIn(key, state.accounts);
+    const summary = summaryOf(key);
+    const holdings = holdingsOverview(accounts, state.movements, prices);
+    const day = dayChange(holdings, summary.total);
+    let note = '–';
+    if (accounts.length === 0) note = 'Ingen kontoer ennå';
+    else if (holdings.length > 0) {
+      note = html`${dayLabel} <span class="gain ${trendClass(day.amount)}" data-live-day="${key}">${hasPrices(holdings) ? gainText(day.amount, day.ratio, currency) : '–'}</span>`;
+    } else if (summary.gain) {
+      note = html`Avkastning <span class="gain ${trendClass(summary.gain.amount)}">${gainText(summary.gain.amount, summary.gain.ratio, currency)}</span>`;
+    }
+    return sectionTile(key, iconName, { value: money(summary.total), note, live: true });
+  };
+
+  return html`<section class="section-tiles" aria-labelledby="section-tiles-title">
+    <h2 class="visually-hidden" id="section-tiles-title">Formuen fordelt</h2>
+    ${sectionTile('bank', 'bank', { value: money(bank.assets), note: bankNote })}
+    ${marketTile('investments', 'trend', 'I dag')}
+    ${marketTile('crypto', 'coins', '24 t')}
   </section>`;
+}
+
+function sectionTile(key, iconName, { value, note, live = false }) {
+  return html`<a class="section-tile" href="#/${SECTIONS[key].path}">
+    <span class="section-tile-head">${icon(iconName, { size: 18 })}<span>${SECTIONS[key].title}</span></span>
+    <span class="section-tile-arrow" aria-hidden="true">${icon('chevron-right', { size: 16 })}</span>
+    <strong class="section-tile-value" ${live ? html`data-live-section="${key}"` : ''}>${value}</strong>
+    <span class="section-tile-note">${note}</span>
+  </a>`;
 }
 
 export function mountOverview(container, ctx) {

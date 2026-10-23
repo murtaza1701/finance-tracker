@@ -40,8 +40,9 @@ const ROUTES = new Map([...Object.entries(VIEWS).map(([key, view]) => [view.path
 const LIVE_ROUTES = new Set(['overview', 'investments', 'crypto', 'account']);
 // Sider der "Registrer"-knappen registrerer forbruk (resten registrerer bevegelser på kontoer).
 const SPENDING_ROUTES = new Set(['spending', 'transactions', 'budgets']);
-// Sider med egne knapper (Overfør, Kjøp, Selg …): her ville den flytende +-knappen bare dekket innholdet.
-const OWN_ACTION_ROUTES = new Set(['bank', 'investments', 'crypto', 'account']);
+// Her ville den flytende +-knappen bare dekket innholdet: sidene har egne knapper (Overfør, Kjøp, Selg …),
+// og forsiden lenker videre til dem med flisene for Bank, Aksjer og fond og Krypto.
+const HIDE_FAB_ROUTES = new Set(['overview', 'bank', 'investments', 'crypto', 'account']);
 
 const defaultFilters = (month) => ({ month, type: 'all', category: 'all', query: '' });
 const categoryName = (id) => getCategory(id).name;
@@ -106,7 +107,7 @@ function render({ focusMain = false } = {}) {
   document.querySelector('[data-slot="quick-add-label"]').textContent = label;
   const fab = document.querySelector('.fab');
   fab.setAttribute('aria-label', label);
-  fab.hidden = OWN_ACTION_ROUTES.has(ui.route);
+  fab.hidden = HIDE_FAB_ROUTES.has(ui.route);
 }
 
 // Siden tegnes på nytt etter hver endring, så behold markøren der den var (f.eks. i søkefeltet).

@@ -4,7 +4,7 @@ import { COINS, accountsIn, findCoin } from '../accounts.js';
 import { html } from '../html.js';
 import { icon } from '../icons.js';
 import { formatMoney, formatPrice, formatQuantity } from '../money.js';
-import { dayChange, heldAssets, holdingsOverview, summarizeNetWorth } from '../networth.js';
+import { dayChange, hasPrices, heldAssets, holdingsOverview, summarizeNetWorth } from '../networth.js';
 import { historyChart, historyFor, mountHistory } from './history.js';
 import { updateLiveValues } from './live.js';
 import { accountRows, changeText, coinIcon, emptyState, gainText, liveChip, newAccountButton, pageHeader, quickAction, trendClass } from './shared.js';
@@ -39,7 +39,7 @@ export function renderCrypto(ctx) {
       <p class="hero-label">Total verdi</p>
       <p class="hero-value" data-live-section="crypto">${formatMoney(summary.total, currency, { whole: true })}</p>
       <p class="wallet-change">
-        <span class="delta-pill ${trendClass(day.amount)}" data-live-day="crypto">${gainText(day.amount, day.ratio, currency)}</span>
+        <span class="delta-pill ${trendClass(day.amount)}" data-live-day="crypto">${hasPrices(holdings) ? gainText(day.amount, day.ratio, currency) : '–'}</span>
         <span class="muted">siste 24 timer</span>
       </p>
       <div class="quick-actions">
