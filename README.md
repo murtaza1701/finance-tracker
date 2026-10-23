@@ -231,11 +231,3 @@ Fra første versjon:
 13. Ved **redigering ble nytt beløp lagt til bak det gamle**; nå markeres beløpet når dialogen åpnes.
 14. **Dialogen var bredere enn mobilskjermen** (standardbredden til et `<input>`).
 15. **Den lokale serveren hang ved oppstart** på enkelte nettverk (navneoppslag i Python).
-
-## Videre arbeid
-
-- Faste overføringer (f.eks. BSU-sparing den 20. hver måned) som legges inn automatisk
-- Fondskurser (Yahoo har fondene bare som koder uten navn, f.eks. `0P0001R2QD.IR`)
-- Sparemål («ny PC: 4 500 av 12 000 kr»)
-- Import av kontoutskrift (CSV) fra banken
-- Installere som app på mobilen og bruke den uten nett (PWA)
