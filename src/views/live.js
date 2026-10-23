@@ -45,11 +45,15 @@ export function updateLiveValues(container, state, feed) {
     if (!find(`[data-live-section="${section}"]`)) continue;
     const accounts = accountsIn(section, state.accounts);
     const summary = summarizeNetWorth(accounts, state.movements, prices);
-    const day = dayChange(holdingsOverview(accounts, state.movements, prices), summary.total);
+    const holdings = holdingsOverview(accounts, state.movements, prices);
+    const day = dayChange(holdings, summary.total);
     setLive(find(`[data-live-section="${section}"]`), money(summary.total), summary.total);
-    const dayElement = find(`[data-live-day="${section}"]`);
-    setLive(dayElement, gainText(day.amount, day.ratio, currency));
-    setTrend(dayElement, day.amount);
+    // Uten aksjer eller mynter (bare fond) står "I dag" som "–", som når siden tegnes.
+    if (holdings.length > 0) {
+      const dayElement = find(`[data-live-day="${section}"]`);
+      setLive(dayElement, gainText(day.amount, day.ratio, currency));
+      setTrend(dayElement, day.amount);
+    }
     const gainElement = find(`[data-live-sectiongain="${section}"]`);
     if (summary.gain) {
       setLive(gainElement, gainText(summary.gain.amount, summary.gain.ratio, currency));
@@ -77,9 +81,11 @@ export function updateLiveValues(container, state, feed) {
     if (!isMarketKind(row.kind)) continue; // bare krypto og aksjer endrer seg med kursene
     const id = CSS.escape(row.account.id);
     for (const element of findAll(`[data-live-account="${id}"]`)) setLive(element, money(row.value), row.value);
-    for (const element of findAll(`[data-live-gain="${id}"]`)) {
-      setLive(element, gainText(row.gain, row.gainRatio, currency));
-      setTrend(element, row.gain);
+    if (row.gain !== null) {
+      for (const element of findAll(`[data-live-gain="${id}"]`)) {
+        setLive(element, gainText(row.gain, row.gainRatio, currency));
+        setTrend(element, row.gain);
+      }
     }
     for (const [symbol, quantity] of Object.entries(row.holdings)) {
       const price = prices[priceKey(row.kind, symbol)]?.price;

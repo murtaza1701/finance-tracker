@@ -17,9 +17,19 @@ const RANGES = [
 
 const RANGE_TEXT = { '1w': 'siste uke', '1m': 'siste måned', '3m': 'siste 3 måneder', '6m': 'siste 6 måneder', '1y': 'siste år' };
 
+// Hver tegning får et nytt ctx-objekt; serien huskes per tegning, så siden og grafen regner den bare én gang.
+const seriesCache = new WeakMap();
+
 /** Verdien dag for dag for kontoene i perioden som er valgt. */
 export function historyFor(ctx, accounts) {
-  const { state, ui, today, feed } = ctx;
+  const key = accounts.map((account) => account.id).join();
+  if (!seriesCache.has(ctx)) seriesCache.set(ctx, new Map());
+  const cached = seriesCache.get(ctx);
+  if (!cached.has(key)) cached.set(key, computeHistory(ctx, accounts));
+  return cached.get(key);
+}
+
+function computeHistory({ state, ui, today, feed }, accounts) {
   const ids = new Set(accounts.map((account) => account.id));
   const movements = state.movements.filter((m) => ids.has(m.accountId));
   const first = firstMovementDate(movements);

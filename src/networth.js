@@ -105,7 +105,8 @@ export function summarizeNetWorth(accounts, movements, prices = {}) {
   const rows = accounts.map((account) => {
     const kind = accountKind(account);
     const status = accountStatus(account, movementsFor(account.id, movements), priceOf);
-    const tracksGain = kind === 'investment' || isMarketKind(kind);
+    // Mangler kursen for noe (f.eks. mens den hentes), er avkastningen ukjent – ikke −100 %.
+    const tracksGain = (kind === 'investment' || isMarketKind(kind)) && status.missing.length === 0;
     const gain = tracksGain ? status.value - status.invested : null;
     return {
       account,

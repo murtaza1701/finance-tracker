@@ -136,7 +136,7 @@ export function createPriceFeed({ storage, currency = 'NOK' }) {
   let retries = 0;
   let emitTimer = null;
   let lastEmit = 0;
-  let historyRequest = null;
+  let historyQueue = Promise.resolve(false);
   const listeners = new Set();
   const history = new Map(); // symbol → [[dato, kurs], …]
 
@@ -204,6 +204,26 @@ export function createPriceFeed({ storage, currency = 'NOK' }) {
       writeJSON(storage, CACHE_KEY, { currency, prices, usdtRate, updatedAt });
     }
     emit();
+  }
+
+  async function fetchHistory(symbols) {
+    let changed = false;
+    for (const symbol of symbols) {
+      const coin = findCoin(symbol);
+      const stored = readJSON(storage, historyKey(symbol));
+      if ((!coin && !isStockKey(symbol)) || (stored && Date.now() - stored.fetchedAt < HISTORY_MAX_AGE_MS)) continue;
+      try {
+        const points = coin ? await geckoHistory(coin) : await stockHistory(symbol);
+        if (points.length) {
+          history.set(symbol, points);
+          writeJSON(storage, historyKey(symbol), { fetchedAt: Date.now(), points });
+          changed = true;
+        }
+      } catch {
+        // uten historikk brukes dagens kurs bakover i tid
+      }
+    }
+    return changed;
   }
 
   function storedHistory(symbol) {
@@ -362,6 +382,7 @@ export function createPriceFeed({ storage, currency = 'NOK' }) {
       usdtRate = null;
       updatedAt = null;
       history.clear();
+      fxRates.clear(); // kursene gjaldt den gamle valutaen
       start();
     },
 
@@ -419,29 +440,11 @@ export function createPriceFeed({ storage, currency = 'NOK' }) {
      * Gir true hvis noe nytt ble hentet (da bør grafen tegnes på nytt).
      */
     loadHistory(symbols) {
-      if (historyRequest) return historyRequest.then(() => false); // allerede i gang
-      historyRequest = (async () => {
-        let changed = false;
-        for (const symbol of symbols) {
-          const coin = findCoin(symbol);
-          const stored = readJSON(storage, historyKey(symbol));
-          if ((!coin && !isStockKey(symbol)) || (stored && Date.now() - stored.fetchedAt < HISTORY_MAX_AGE_MS)) continue;
-          try {
-            const points = coin ? await geckoHistory(coin) : await stockHistory(symbol);
-            if (points.length) {
-              history.set(symbol, points);
-              writeJSON(storage, historyKey(symbol), { fetchedAt: Date.now(), points });
-              changed = true;
-            }
-          } catch {
-            // uten historikk brukes dagens kurs bakover i tid
-          }
-        }
-        return changed;
-      })().finally(() => {
-        historyRequest = null;
-      });
-      return historyRequest;
+      // Én henting om gangen: kommer det en ny mens en annen pågår, kjøres den etterpå
+      // (kurser som alt er hentet, hoppes over), så ingen symboler blir glemt.
+      const request = historyQueue.then(() => fetchHistory(symbols));
+      historyQueue = request.catch(() => false);
+      return request;
     },
 
     /** Kursen på en dato: live-kurs for i dag, ellers historisk dagskurs (eller dagens kurs som reserve). */

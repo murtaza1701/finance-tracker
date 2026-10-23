@@ -114,6 +114,8 @@ test('summarizeNetWorth still works before any prices have been loaded', () => {
   const firi = summary.rows.find((r) => r.account.id === 'firi');
   assertEqual(firi.value, 0);
   assertDeepEqual(firi.missing.sort(), ['BTC', 'ETH']);
+  assertEqual(firi.gain, null, 'unknown gain while prices load, not −100 %');
+  assertEqual(summary.gain.amount, kr(3_000), 'the section gain only counts accounts with all prices (here the fund)');
 });
 
 test('heldAssets lists the price keys of everything on crypto and stock accounts', () => {

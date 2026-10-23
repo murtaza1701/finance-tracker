@@ -1904,12 +1904,12 @@ fieldset {
 }
 
 .delta-pill.is-up {
-  background: color-mix(in oklab, var(--good) 14%, transparent);
+  background: color-mix(in oklab, var(--good) 10%, transparent);
   color: var(--good-text);
 }
 
 .delta-pill.is-down {
-  background: color-mix(in oklab, var(--critical) 14%, transparent);
+  background: color-mix(in oklab, var(--critical) 10%, transparent);
   color: var(--critical-text);
 }
 
@@ -2567,5 +2567,21 @@ a.tx-row {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Større trykkflater på berøringsskjermer (periodeknapper, små knapper og tilbake-lenken) */
+@media (pointer: coarse) {
+  .range-toggle button,
+  .toggle button {
+    height: 40px;
+  }
+
+  .button-small {
+    min-height: 40px;
+  }
+
+  .back-link {
+    min-height: 44px;
   }
 }

@@ -216,6 +216,13 @@ test('you cannot sell more coins than the account holds', () => {
   assert(store.addMovement({ accountId: firi.id, kind: 'sell', asset: 'BTC', quantity: 0.01, amount: 800_000, date: today, note: '' }).ok);
 });
 
+test('a sale cannot be dated before the coins were bought', () => {
+  const { store, firi } = storeWithAccounts(); // 0.01 BTC bought on 2026-10-01
+  const early = store.addMovement({ accountId: firi.id, kind: 'sell', asset: 'BTC', quantity: 0.01, amount: 700_000, date: '2026-09-15', note: '' });
+  assert(!early.ok, 'a sale before the purchase is rejected');
+  assert(early.errors.quantity.includes('ingen'), early.errors.quantity);
+});
+
 test('a transfer moves money from one account to another, so the net worth is not counted twice', () => {
   const { store, bank, fund } = storeWithAccounts();
   const result = store.addMovement({ accountId: fund.id, kind: 'deposit', amount: 200_000, date: today, note: 'Fondssparing' }, { counterAccountId: bank.id });

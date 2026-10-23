@@ -1,11 +1,11 @@
 // Oversikt (forsiden): bare formuen din og en graf over hvordan den beveger seg.
 import { html } from '../html.js';
 import { icon, logo } from '../icons.js';
-import { formatMoney, formatPercent } from '../money.js';
+import { formatMoney } from '../money.js';
 import { heldAssets, seriesChange, summarizeNetWorth } from '../networth.js';
 import { historyChart, historyFor, mountHistory, rangeText } from './history.js';
 import { updateLiveValues } from './live.js';
-import { liveChip } from './shared.js';
+import { gainText, liveChip, trendClass } from './shared.js';
 
 export function renderOverview(ctx) {
   const { state, feed, ui, today } = ctx;
@@ -24,9 +24,7 @@ export function renderOverview(ctx) {
     <p class="overview-value" data-live="total">${formatMoney(summary.total, currency, { whole: true })}</p>
     <p class="overview-change">
       ${change
-        ? html`<span class="delta-pill ${change.amount >= 0 ? 'is-up' : 'is-down'}">
-              ${icon(change.amount >= 0 ? 'arrow-up' : 'arrow-down', { size: 14 })}${formatMoney(Math.abs(change.amount), currency, { whole: true })}${change.ratio === null ? '' : ` (${formatPercent(Math.abs(change.ratio))})`}
-            </span>
+        ? html`<span class="delta-pill ${trendClass(change.amount)}">${gainText(change.amount, change.ratio, currency)}</span>
             <span class="muted">${rangeText(ui.historyRange, change, today)}</span>`
         : html`<span class="muted">Bank, sparing, aksjer, fond og krypto – minus gjeld.</span>`}
     </p>

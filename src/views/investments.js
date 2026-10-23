@@ -56,11 +56,11 @@ export function renderInvestments(ctx) {
         </div>
         <div>
           <dt>Avkastning</dt>
-          <dd class="delta-value ${trendClass(summary.gain.amount)}" data-live-sectiongain="investments">${gainText(summary.gain.amount, summary.gain.ratio, currency)}</dd>
+          <dd class="delta-value ${trendClass(summary.gain?.amount)}" data-live-sectiongain="investments">${summary.gain ? gainText(summary.gain.amount, summary.gain.ratio, currency) : '–'}</dd>
         </div>
         <div>
           <dt>Satt inn</dt>
-          <dd>${money(summary.gain.invested)}</dd>
+          <dd>${money(summary.rows.reduce((sum, row) => sum + row.invested, 0))}</dd>
         </div>
       </dl>
       ${historyChart(ctx, series, { label: 'Aksjer og fond', chartId: 'investments' })}

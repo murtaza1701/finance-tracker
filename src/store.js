@@ -422,7 +422,8 @@ export function createStore(storage, { onSaveError = () => {} } = {}) {
       const errors = validateMovement(movement, account);
 
       if (!hasErrors(errors) && movement.kind === 'sell') {
-        const { holdings } = replayAccount(movementsFor(account.id, state.movements));
+        // Det du eide på salgsdatoen, så et salg ikke kan dateres før kjøpet
+        const { holdings } = replayAccount(movementsFor(account.id, state.movements), movement.date);
         const held = holdings[movement.asset] ?? 0;
         if (movement.quantity > held + 1e-9) {
           errors.quantity = held > 0 ? `Du har bare ${formatQuantity(held)} ${movement.asset} på denne kontoen.` : `Du har ingen ${movement.asset} på denne kontoen.`;

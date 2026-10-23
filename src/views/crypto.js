@@ -54,7 +54,7 @@ export function renderCrypto(ctx) {
         <div>
           <h2 class="card-title">Dine eiendeler</h2>
           <p class="card-subtitle">Avkastning totalt:
-            <span class="gain ${trendClass(summary.gain.amount)}" data-live-sectiongain="crypto">${gainText(summary.gain.amount, summary.gain.ratio, currency)}</span>
+            <span class="gain ${trendClass(summary.gain?.amount)}" data-live-sectiongain="crypto">${summary.gain ? gainText(summary.gain.amount, summary.gain.ratio, currency) : '–'}</span>
           </p>
         </div>
       </header>
@@ -63,15 +63,15 @@ export function renderCrypto(ctx) {
         : html`<p class="muted-note">Ingen mynter ennå. Trykk «Kjøp» for å registrere et kjøp.</p>`}
     </section>
 
-    ${marketsCard(prices, currency)}
-
     <section class="card list-card">
       <header class="card-header">
         <h2 class="card-title">Kontoer</h2>
         ${newAccountButton('crypto')}
       </header>
       ${accountRows(summary.rows, currency)}
-    </section>`;
+    </section>
+
+    ${marketsCard(prices, currency)}`;
 }
 
 export function mountCrypto(container, ctx) {

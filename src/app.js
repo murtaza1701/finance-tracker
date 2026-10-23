@@ -481,10 +481,10 @@ let pricedCoins = Object.keys(feed.prices()).sort().join();
 feed.subscribe(() => {
   movementDialog.refreshEstimate();
   const coins = Object.keys(feed.prices()).sort().join();
-  if (coins !== pricedCoins) {
-    pricedCoins = coins;
-    if (LIVE_ROUTES.has(ui.route) && !document.querySelector('dialog[open]')) render();
-  }
+  // Med en dialog åpen venter vi (pricedCoins oppdateres ikke), så siden tegnes ved neste kurs etter at den lukkes.
+  if (coins === pricedCoins || document.querySelector('dialog[open]')) return;
+  pricedCoins = coins;
+  if (LIVE_ROUTES.has(ui.route)) render();
 });
 
 // ---------- Oppstart ----------
