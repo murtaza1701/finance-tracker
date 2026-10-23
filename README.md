@@ -1,5 +1,8 @@
 # Pengeflyt – formue og forbruk på ett sted
 
+**▶ Prøv appen: [murtaza1701.github.io/finance-tracker](https://murtaza1701.github.io/finance-tracker/)** –
+trykk **Prøv med eksempeldata** for å se den med et år med data.
+
 **Pengeflyt** samler hele formuen din på ett sted: bankkontoer, sparing og BSU, fond, aksjer, krypto
 (f.eks. Firi og Binance) og gjeld som studielån. Kryptoverdiene følger markedet **i sanntid** og aksjene
 følger kursene på børsen (ca. 15 minutter forsinket), og når du
@@ -16,6 +19,24 @@ aldri maskinen (de lagres i nettleserens `localStorage`). Bare kurser hentes fra
 
 > Laget i Oppgave 3 i *Intro til KI* (vibe coding): appen er planlagt, skrevet, testet og forbedret sammen
 > med en KI-kodeagent. Se [Slik ble KI brukt](#slik-ble-ki-brukt).
+
+## Skjermbilder
+
+| Oversikt | Bank |
+|---|---|
+| ![Oversikt: formuen og en graf over det siste året](docs/skjermbilder/oversikt.png) | ![Bank: totalt på kontoene, snarveier og kontoene](docs/skjermbilder/bank.png) |
+| **Aksjer og fond** | **Krypto** |
+| ![Aksjer og fond: totalverdi, endring i dag, avkastning og graf](docs/skjermbilder/aksjer.png) | ![Krypto: total verdi i sanntid, endring siste døgn og graf](docs/skjermbilder/krypto.png) |
+
+På mobil (lyst tema): forsiden, aksjene og fondene, og kryptoeiendelene med markedslisten.
+
+<p>
+  <img src="docs/skjermbilder/mobil-oversikt.png" width="250" alt="Forsiden på mobil: formuen og grafen">
+  <img src="docs/skjermbilder/mobil-aksjer.png" width="250" alt="Aksjer og fond på mobil: aksjetabell, fond og kontoer">
+  <img src="docs/skjermbilder/mobil-krypto.png" width="250" alt="Krypto på mobil: dine eiendeler og markedslisten">
+</p>
+
+*Skjermbildene viser eksempeldataene i appen, ikke ekte kontoer.*
 
 ## Funksjoner
 
@@ -83,7 +104,9 @@ Dobbeltklikker du `index.html`, får du en melding som forklarer hvordan appen s
 
 116 enhetstester dekker beregningene, tolkning av tall, lagring, overføringer, kurser og eksport.
 
-- **I nettleseren:** start serveren og åpne **http://localhost:8000/tests/**
+- **På nettsiden:** åpne **https://murtaza1701.github.io/finance-tracker/tests/** (testene bruker ikke
+  dataene dine)
+- **I nettleseren lokalt:** start serveren og åpne **http://localhost:8000/tests/**
 - **I terminalen på Mac** (med JavaScript-motoren som følger med macOS):
   ```bash
   /System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc -m tests/cli.js
@@ -93,7 +116,8 @@ Se [Testing](#testing) for hva som ble testet for hånd, og feilene testingen fa
 
 ## Publisering med GitHub Pages
 
-Appen er bare statiske filer, så GitHub Pages kan vise den gratis:
+Appen ligger ute på **https://murtaza1701.github.io/finance-tracker/**. Den er bare statiske filer, så
+GitHub Pages kan vise den gratis. Slik publiserer du en egen kopi:
 
 1. Lag et nytt, offentlig repository på GitHub og push denne mappen dit.
 2. Gå til **Settings → Pages**, velg **Deploy from a branch**, `main` og `/ (root)`, og lagre.
@@ -123,6 +147,7 @@ src/
   views/              én fil per side (overview, bank, investments, crypto, account, spending …),
                       history.js (grafen med periodevalg) og live.js (oppdaterer tall når kursene endres)
 tests/                enhetstester og en liten testkjører
+docs/skjermbilder/    skjermbildene i denne README-en
 ```
 
 Noen valg som er tatt:
