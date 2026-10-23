@@ -19,7 +19,7 @@ Appen kjører helt i nettleseren. Det finnes ingen konto, innlogging eller serve
 aldri maskinen (de lagres i nettleserens `localStorage`). Bare kurser hentes fra nettet.
 
 > Laget i Oppgave 3 i *Intro til KI* (vibe coding): appen er planlagt, skrevet, testet og forbedret sammen
-> med en KI-kodeagent. Se [Slik ble KI brukt](#slik-ble-ki-brukt).
+> med en KI-kodeagent.
 
 ## Skjermbilder
 
