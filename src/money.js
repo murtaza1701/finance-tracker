@@ -15,12 +15,12 @@ function formatter(locale, options) {
 
 /**
  * 123450 → "1 234,50 kr". Hele beløp vises uten desimaler.
- * Valg: sign (vis alltid + eller −), whole (avrund til hele kroner).
+ * Valg: sign (vis alltid + eller −), whole (avrund til hele kroner), decimals (alltid to desimaler, som i en nettbank).
  */
-export function formatMoney(minor, currency = 'NOK', { locale = LOCALE, sign = false, whole = false } = {}) {
+export function formatMoney(minor, currency = 'NOK', { locale = LOCALE, sign = false, whole = false, decimals = false } = {}) {
   // Rund halve kroner bort fra null, så både -1 234,50 og 1 234,50 blir 1 235 (Math.round(-1234.5) er -1234).
   const value = whole ? Math.sign(minor) * Math.round(Math.abs(minor) / 100) : minor / 100;
-  const digits = whole || minor % 100 === 0 ? 0 : 2;
+  const digits = decimals ? 2 : whole || minor % 100 === 0 ? 0 : 2;
   return formatter(locale, {
     style: 'currency',
     currency,

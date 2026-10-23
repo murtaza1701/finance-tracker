@@ -1,6 +1,9 @@
 import { test, assert, assertDeepEqual, assertEqual } from './harness.js';
 import {
+  dayChange,
   heldAssets,
+  holdingsCost,
+  holdingsOverview,
   holdingsValue,
   movementsFor,
   netWorthSeries,
@@ -158,6 +161,51 @@ test('rangeStart never starts before the first movement', () => {
 });
 
 test('seriesChange compares the last point with the first', () => {
-  assertDeepEqual(seriesChange([{ date: 'a', value: 100 }, { date: 'b', value: 250 }]), { amount: 150, from: 'a' });
+  assertDeepEqual(seriesChange([{ date: 'a', value: 100 }, { date: 'b', value: 250 }]), { amount: 150, ratio: 1.5, from: 'a' });
+  assertEqual(seriesChange([{ date: 'a', value: -100 }, { date: 'b', value: 50 }]).ratio, null, 'no percentage from a negative start');
   assertEqual(seriesChange([{ date: 'a', value: 100 }]), null);
+});
+
+test('holdingsCost uses the average cost method: a sale takes its share of the cost', () => {
+  const positions = holdingsCost([
+    move('a', 'buy', '2026-01-01', { asset: 'EQNR.OL', quantity: 10, amount: kr(2_500) }),
+    move('a', 'buy', '2026-02-01', { asset: 'EQNR.OL', quantity: 10, amount: kr(3_500) }),
+    move('a', 'sell', '2026-03-01', { asset: 'EQNR.OL', quantity: 5, amount: kr(2_000) }),
+  ]);
+  assertEqual(positions['EQNR.OL'].quantity, 15);
+  assertEqual(positions['EQNR.OL'].cost, kr(4_500), '6 000 kr for 20 shares; selling a quarter leaves three quarters of the cost');
+  assertDeepEqual(holdingsCost([move('a', 'buy', '2026-01-01', { asset: 'BTC', quantity: 0.1, amount: 1 }), move('a', 'sell', '2026-01-02', { asset: 'BTC', quantity: 0.1, amount: 2 })]), {}, 'sold out');
+});
+
+test('holdingsOverview adds up the same coin across accounts, with average price and gain', () => {
+  const accounts = [
+    { id: 'firi', name: 'Firi', type: 'crypto', institution: 'Firi' },
+    { id: 'binance', name: 'Binance', type: 'crypto', institution: 'Binance' },
+  ];
+  const movements = [
+    move('firi', 'buy', '2026-01-01', { asset: 'BTC', quantity: 0.01, amount: kr(6_000) }),
+    move('binance', 'buy', '2026-02-01', { asset: 'BTC', quantity: 0.01, amount: kr(8_000) }),
+    move('binance', 'buy', '2026-02-01', { asset: 'ETH', quantity: 1, amount: kr(20_000) }),
+  ];
+  const rows = holdingsOverview(accounts, movements, { BTC: { price: 800_000, change24h: 2 }, ETH: { price: 22_000, change24h: -1 } });
+  assertDeepEqual(rows.map((row) => row.key), ['ETH', 'BTC'], 'biggest value first');
+  const btc = rows[1];
+  assertEqual(btc.quantity, 0.02);
+  assertEqual(btc.averagePrice, 700_000);
+  assertEqual(btc.value, kr(16_000));
+  assertEqual(btc.gain, kr(2_000));
+  assertDeepEqual(btc.accountIds, ['firi', 'binance']);
+  assertEqual(holdingsOverview(accounts, movements, {})[0].value, null, 'no price yet: no value');
+});
+
+test('dayChange works out the change since yesterday from the price changes', () => {
+  // 10 200 kr after +2 % means 10 000 kr yesterday; 9 900 kr after -1 % means 10 000 kr yesterday
+  const change = dayChange([{ value: kr(10_200), change24h: 2 }, { value: kr(9_900), change24h: -1 }, { value: null, change24h: 5 }]);
+  assertEqual(change.amount, kr(100));
+  assertEqual(Math.round(change.ratio * 10_000) / 10_000, 0.005);
+  assertDeepEqual(dayChange([]), { amount: 0, ratio: null });
+  // With the whole portfolio (here 30 100 kr incl. a fund without a daily price) the ratio is of all of it
+  const withFund = dayChange([{ value: kr(10_200), change24h: 2 }], kr(30_100));
+  assertEqual(withFund.amount, kr(200));
+  assertEqual(Math.round(withFund.ratio * 10_000) / 10_000, 0.0067);
 });

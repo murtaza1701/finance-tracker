@@ -5,7 +5,7 @@ import { filterTransactions, groupByDate, monthsWithData, summarize } from '../f
 import { html } from '../html.js';
 import { icon } from '../icons.js';
 import { formatMoney } from '../money.js';
-import { emptyState, pageHeader, transactionRow } from './shared.js';
+import { bankTabs, emptyState, pageHeader, transactionRow } from './shared.js';
 
 const TYPES = [
   ['all', 'Alle'],
@@ -19,7 +19,7 @@ export function renderTransactions({ state, ui, today, thisMonth }) {
   const filters = ui.filters;
 
   if (transactions.length === 0) {
-    return html`${pageHeader('Transaksjoner')}
+    return html`${pageHeader('Bank')}${bankTabs('transactions')}
       <section class="card">
         ${emptyState({
           emoji: '🧾',
@@ -43,10 +43,11 @@ export function renderTransactions({ state, ui, today, thisMonth }) {
   const isFiltered = filters.type !== 'all' || filters.category !== 'all' || filters.query.trim() !== '';
 
   return html`
-    ${pageHeader('Transaksjoner', {
+    ${pageHeader('Bank', {
       actions: html`<button type="button" class="button button-secondary" data-action="export-csv" ${list.length ? '' : 'disabled'}>
         ${icon('download', { size: 18 })} Eksporter CSV</button>`,
     })}
+    ${bankTabs('transactions')}
 
     <div class="filters" role="search">
       <label class="visually-hidden" for="filter-month">Måned</label>

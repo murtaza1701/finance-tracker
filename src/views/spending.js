@@ -6,7 +6,7 @@ import { budgetReport, filterTransactions, monthlySeries, monthSummary, percentC
 import { html } from '../html.js';
 import { icon } from '../icons.js';
 import { formatMoney } from '../money.js';
-import { emptyState, pageHeader, transactionRow } from './shared.js';
+import { bankTabs, emptyState, pageHeader, transactionRow } from './shared.js';
 
 export function renderSpending({ state, ui, thisMonth }) {
   const { transactions, budgets, settings } = state;
@@ -14,7 +14,7 @@ export function renderSpending({ state, ui, thisMonth }) {
   const month = ui.month;
 
   if (transactions.length === 0) {
-    return html`${pageHeader('Forbruk')}
+    return html`${pageHeader('Bank')}${bankTabs('spending')}
       <section class="card">
         ${emptyState({
           emoji: '🧾',
@@ -36,7 +36,8 @@ export function renderSpending({ state, ui, thisMonth }) {
   const money = (minor, options) => formatMoney(minor, currency, { whole: true, ...options });
 
   return html`
-    ${pageHeader('Forbruk', { month, thisMonth })}
+    ${pageHeader('Bank', { month, thisMonth })}
+    ${bankTabs('spending')}
 
     <section class="card hero" aria-labelledby="hero-label">
       <p class="hero-label" id="hero-label">Netto · ${monthLabel(month)}</p>

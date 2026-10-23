@@ -67,3 +67,12 @@ test('demo stock purchases are whole shares at the price of that day', () => {
   assertEqual(equinor.quantity, 10);
   assertEqual(equinor.amount, 400_000, '10 shares × 400 kr');
 });
+
+test('every demo account belongs to one of the three sections', async () => {
+  const { SECTIONS, accountsIn, sectionOf } = await import('../src/accounts.js');
+  const { accounts } = generateDemoData({ today, priceOn });
+  const counted = Object.keys(SECTIONS).reduce((sum, section) => sum + accountsIn(section, accounts).length, 0);
+  assertEqual(counted, accounts.length);
+  assertEqual(sectionOf(accounts.find((a) => a.type === 'loan')), 'bank', 'loans are shown under Bank');
+  assertEqual(sectionOf(accounts.find((a) => a.type === 'fund')), 'investments');
+});

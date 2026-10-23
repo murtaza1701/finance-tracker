@@ -6,7 +6,7 @@ import { budgetReport, dailyAllowance, monthProgress } from '../finance.js';
 import { html } from '../html.js';
 import { icon } from '../icons.js';
 import { formatMoney } from '../money.js';
-import { pageHeader } from './shared.js';
+import { bankTabs, pageHeader } from './shared.js';
 
 export function renderBudgets({ state, ui, today, thisMonth }) {
   const { transactions, budgets, settings } = state;
@@ -22,7 +22,8 @@ export function renderBudgets({ state, ui, today, thisMonth }) {
     .sort((a, b) => (spentWithoutBudget.get(b.id) ?? 0) - (spentWithoutBudget.get(a.id) ?? 0));
 
   return html`
-    ${pageHeader('Budsjett', { month, thisMonth })}
+    ${pageHeader('Bank', { month, thisMonth })}
+    ${bankTabs('budgets')}
 
     ${report.rows.length > 0 ? summaryCard(report.total, { month, today, thisMonth, pace, currency, money }) : intro()}
 

@@ -156,16 +156,16 @@ function generateNetWorth({ today, seed, priceOn }) {
   move(bank, 'opening', first, { amount: kr(9_400), note: 'Startsaldo' });
   move(bsu, 'opening', first, { amount: kr(41_000), note: 'Startsaldo' });
   move(fund, 'opening', first, { amount: kr(18_600), invested: kr(16_500), note: 'Startsaldo' });
-  move(loan, 'opening', first, { amount: kr(72_000), note: 'Startsaldo' });
+  move(loan, 'opening', first, { amount: kr(46_000), note: 'Startsaldo' });
   let bsuValue = 41_000;
   let fundValue = 18_600;
-  let loanValue = 72_000;
+  let loanValue = 46_000;
 
   for (let i = 0; i <= 12; i++) {
     const month = shiftMonth(start, i);
     const monthNumber = Number(month.slice(5));
 
-    if (i > 0) move(bank, 'value', dayOf(month, 25), { amount: kr(between(5_500, 16_000)), note: 'Saldo fra nettbanken' });
+    if (i > 0) move(bank, 'value', dayOf(month, 25), { amount: kr(between(7_000, 12_500)), note: 'Saldo fra nettbanken' });
 
     move(bsu, 'deposit', dayOf(month, 20), { amount: kr(2_000), note: 'Fast BSU-sparing' });
     bsuValue += 2_000;
@@ -193,10 +193,10 @@ function generateNetWorth({ today, seed, priceOn }) {
     if (i === 7) buy(binance, 'USDT', dayOf(month, 3), 480, 'Satte inn USDT');
     if (i === 9) buy(binance, 'SOL', dayOf(month, 14), 1_500, 'Kjøpte SOL');
 
-    // Studielånet øker ved hvert semester
-    if (monthNumber === 1 || monthNumber === 8) {
-      loanValue += 17_500;
-      move(loan, 'value', dayOf(month, 15), { amount: kr(loanValue), note: 'Nytt semester' });
+    // Studielånet øker litt for hver utbetaling fra Lånekassen (ingen i juli)
+    if (i > 0 && monthNumber !== 7) {
+      loanValue += 3_200;
+      move(loan, 'value', dayOf(month, 15), { amount: kr(loanValue), note: 'Månedlig utbetaling' });
     }
   }
 

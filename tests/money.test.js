@@ -64,6 +64,7 @@ test('formatMoney can force a sign and round to whole kroner', () => {
   assertEqual(plain(formatMoney(-45000, 'NOK', { sign: true })), '-450 kr');
   assertEqual(plain(formatMoney(0, 'NOK', { sign: true })), '0 kr');
   assertEqual(plain(formatMoney(123450, 'NOK', { whole: true })), '1 235 kr');
+  assertEqual(plain(formatMoney(861500, 'NOK', { decimals: true })), '8 615,00 kr', 'always two decimals, like a bank');
 });
 
 test('rounding to whole kroner treats negative amounts the same way (bug found while testing)', () => {

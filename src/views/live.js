@@ -1,10 +1,10 @@
-// Oppdaterer tallene på siden når kryptokursene endrer seg, uten å tegne hele siden på nytt
+// Oppdaterer tallene på siden når kursene endrer seg, uten å tegne hele siden på nytt
 // (da ville åpne nedtrekkslister lukkes og verktøytips forsvinne hvert sekund).
 // Elementer merkes med data-live-* i markupen; endrede tall blinker kort grønt eller rødt.
-import { isMarketKind, priceKey } from '../accounts.js';
+import { accountsIn, isMarketKind, priceKey } from '../accounts.js';
 import { formatMoney, formatPrice } from '../money.js';
-import { summarizeNetWorth } from '../networth.js';
-import { changeText, gainRatioText, gainText, liveStatus, trendClass } from './shared.js';
+import { dayChange, holdingsOverview, summarizeNetWorth } from '../networth.js';
+import { changeText, gainText, liveStatus, trendClass } from './shared.js';
 
 function setLive(element, text, value = null) {
   if (!element || element.textContent === text) return;
@@ -29,24 +29,55 @@ function setTrend(element, value) {
 export function updateLiveValues(container, state, feed) {
   const currency = state.settings.currency;
   const prices = feed.prices();
-  const summary = summarizeNetWorth(state.accounts, state.movements, prices);
   const money = (minor, options) => formatMoney(minor, currency, { whole: true, ...options });
   const find = (selector) => container.querySelector(selector);
+  const findAll = (selector) => container.querySelectorAll(selector);
 
-  setLive(find('[data-live="total"]'), money(summary.total), summary.total);
-  setLive(find('[data-live="assets"]'), money(summary.assets), summary.assets);
-  if (summary.gain) {
-    const gainElement = find('[data-live="gain"]');
-    setLive(gainElement, money(summary.gain.amount, { sign: true }), summary.gain.amount);
-    setTrend(gainElement, summary.gain.amount);
-    if (summary.gain.ratio !== null) setLive(find('[data-live="gain-ratio"]'), gainRatioText(summary.gain.ratio));
+  // Hele formuen (oversikten)
+  const totalElement = find('[data-live="total"]');
+  if (totalElement) {
+    const { total } = summarizeNetWorth(state.accounts, state.movements, prices);
+    setLive(totalElement, money(total), total);
   }
 
-  for (const row of summary.rows) {
+  // Aksjer og fond, og krypto: totalverdi, endring i dag og avkastning
+  for (const section of ['investments', 'crypto']) {
+    if (!find(`[data-live-section="${section}"]`)) continue;
+    const accounts = accountsIn(section, state.accounts);
+    const summary = summarizeNetWorth(accounts, state.movements, prices);
+    const day = dayChange(holdingsOverview(accounts, state.movements, prices), summary.total);
+    setLive(find(`[data-live-section="${section}"]`), money(summary.total), summary.total);
+    const dayElement = find(`[data-live-day="${section}"]`);
+    setLive(dayElement, gainText(day.amount, day.ratio, currency));
+    setTrend(dayElement, day.amount);
+    const gainElement = find(`[data-live-sectiongain="${section}"]`);
+    if (summary.gain) {
+      setLive(gainElement, gainText(summary.gain.amount, summary.gain.ratio, currency));
+      setTrend(gainElement, summary.gain.amount);
+    }
+  }
+
+  // Hver aksje og mynt, samlet på tvers av kontoer
+  for (const holding of holdingsOverview(state.accounts, state.movements, prices)) {
+    const key = CSS.escape(holding.key);
+    if (holding.value !== null) {
+      for (const element of findAll(`[data-live-hvalue="${key}"]`)) setLive(element, money(holding.value), holding.value);
+    }
+    if (holding.gain !== null) {
+      for (const element of findAll(`[data-live-hgain="${key}"]`)) {
+        // data-short: bare kronebeløpet (på mobil, der det er trangt)
+        setLive(element, gainText(holding.gain, 'short' in element.dataset ? null : holding.gainRatio, currency));
+        setTrend(element, holding.gain);
+      }
+    }
+  }
+
+  // Kontoer med kurser (lister og kontosiden)
+  for (const row of summarizeNetWorth(state.accounts, state.movements, prices).rows) {
     if (!isMarketKind(row.kind)) continue; // bare krypto og aksjer endrer seg med kursene
     const id = CSS.escape(row.account.id);
-    for (const element of container.querySelectorAll(`[data-live-account="${id}"]`)) setLive(element, money(row.value), row.value);
-    for (const element of container.querySelectorAll(`[data-live-gain="${id}"]`)) {
+    for (const element of findAll(`[data-live-account="${id}"]`)) setLive(element, money(row.value), row.value);
+    for (const element of findAll(`[data-live-gain="${id}"]`)) {
       setLive(element, gainText(row.gain, row.gainRatio, currency));
       setTrend(element, row.gain);
     }
@@ -58,29 +89,18 @@ export function updateLiveValues(container, state, feed) {
     }
   }
 
-  for (const type of summary.byType) {
-    const shown = type.type === 'loan' ? -type.value : type.value; // gjeld vises som negativt tall
-    setLive(find(`[data-live-group="${type.type}"]`), money(shown), shown);
-    if (type.share !== null) {
-      setLive(find(`[data-live-share="${type.type}"]`), `${Math.round(type.share * 100)} %`);
-      const bar = find(`[data-live-share-bar="${type.type}"]`);
-      if (bar) bar.style.width = `${(Math.max(0, type.share) * 100).toFixed(1)}%`;
-    }
-  }
-
-  for (const element of container.querySelectorAll('[data-live-price]')) {
-    const symbol = element.dataset.livePrice;
-    const price = prices[symbol];
+  for (const element of findAll('[data-live-price]')) {
+    const price = prices[element.dataset.livePrice];
     if (price) setLive(element, formatPrice(price.price, currency), price.price);
   }
-  for (const element of container.querySelectorAll('[data-live-change]')) {
+  for (const element of findAll('[data-live-change]')) {
     const change = prices[element.dataset.liveChange]?.change24h;
     setLive(element, changeText(change));
     setTrend(element, change);
   }
 
   const { status, text, title } = liveStatus(feed);
-  for (const chip of container.querySelectorAll('[data-live-status]')) {
+  for (const chip of findAll('[data-live-status]')) {
     chip.className = `live-chip live-${status}`;
     chip.title = title;
     setLive(chip.querySelector('[data-live-status-text]'), text);

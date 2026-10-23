@@ -2,6 +2,13 @@
 import { raw } from './html.js';
 
 const PATHS = {
+  home: '<path d="M3 10.5 12 3.5l9 7"/><path d="M5.5 9v11h13V9"/><path d="M10 20v-5h4v5"/>',
+  bank: '<path d="M3 9.5 12 4l9 5.5"/><path d="M5 10v8M9.7 10v8M14.3 10v8M19 10v8M3 20.5h18"/>',
+  trend: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  coins:
+    '<ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v5.5c0 1.66 3.13 3 7 3s7-1.34 7-3V6.5"/>' +
+    '<path d="M5 12v5.5c0 1.66 3.13 3 7 3s7-1.34 7-3V12"/>',
+  minus: '<path d="M5 12h14"/>',
   wallet:
     '<path d="M4 7.5V6a2 2 0 0 1 2-2h11v3.5"/><rect x="3" y="7.5" width="18" height="12.5" rx="2.5"/>' +
     '<path d="M16.5 13.75h.01" stroke-width="3"/>',

@@ -28,6 +28,24 @@ export function accountKind(account) {
   return findAccountType(account?.type)?.kind ?? 'balance';
 }
 
+/**
+ * De tre delene av appen og kontotypene som hører til hver av dem.
+ * newType er typen som foreslås når du lager en ny konto fra den siden.
+ */
+export const SECTIONS = {
+  bank: { title: 'Bank', path: 'bank', types: ['bank', 'savings', 'other', 'loan'], newType: 'bank' },
+  investments: { title: 'Aksjer og fond', path: 'aksjer', types: ['stocks', 'fund'], newType: 'stocks' },
+  crypto: { title: 'Krypto', path: 'krypto', types: ['crypto'], newType: 'crypto' },
+};
+
+export function sectionOf(account) {
+  return Object.keys(SECTIONS).find((key) => SECTIONS[key].types.includes(account?.type)) ?? 'bank';
+}
+
+export function accountsIn(section, accounts) {
+  return accounts.filter((account) => SECTIONS[section].types.includes(account.type));
+}
+
 /** Kontoer der verdien er antall × kurs (krypto og aksjer). */
 export function isMarketKind(kind) {
   return kind === 'crypto' || kind === 'stocks';
@@ -80,20 +98,20 @@ export function assetName(kind, asset, prices = {}) {
  * gecko: id hos CoinGecko (kurs i kroner), binance: handelspar for live-kurs i sanntid.
  */
 export const COINS = [
-  { symbol: 'BTC', name: 'Bitcoin', gecko: 'bitcoin', binance: 'BTCUSDT' },
-  { symbol: 'ETH', name: 'Ethereum', gecko: 'ethereum', binance: 'ETHUSDT' },
-  { symbol: 'SOL', name: 'Solana', gecko: 'solana', binance: 'SOLUSDT' },
-  { symbol: 'XRP', name: 'XRP', gecko: 'ripple', binance: 'XRPUSDT' },
-  { symbol: 'ADA', name: 'Cardano', gecko: 'cardano', binance: 'ADAUSDT' },
-  { symbol: 'DOGE', name: 'Dogecoin', gecko: 'dogecoin', binance: 'DOGEUSDT' },
-  { symbol: 'BNB', name: 'BNB', gecko: 'binancecoin', binance: 'BNBUSDT' },
-  { symbol: 'LTC', name: 'Litecoin', gecko: 'litecoin', binance: 'LTCUSDT' },
-  { symbol: 'DOT', name: 'Polkadot', gecko: 'polkadot', binance: 'DOTUSDT' },
-  { symbol: 'LINK', name: 'Chainlink', gecko: 'chainlink', binance: 'LINKUSDT' },
-  { symbol: 'AVAX', name: 'Avalanche', gecko: 'avalanche-2', binance: 'AVAXUSDT' },
-  { symbol: 'POL', name: 'Polygon', gecko: 'polygon-ecosystem-token', binance: 'POLUSDT' },
-  { symbol: 'USDC', name: 'USD Coin', gecko: 'usd-coin', binance: null },
-  { symbol: 'USDT', name: 'Tether', gecko: 'tether', binance: null },
+  { symbol: 'BTC', name: 'Bitcoin', gecko: 'bitcoin', binance: 'BTCUSDT', color: '#f7931a' },
+  { symbol: 'ETH', name: 'Ethereum', gecko: 'ethereum', binance: 'ETHUSDT', color: '#627eea' },
+  { symbol: 'SOL', name: 'Solana', gecko: 'solana', binance: 'SOLUSDT', color: '#9945ff' },
+  { symbol: 'XRP', name: 'XRP', gecko: 'ripple', binance: 'XRPUSDT', color: '#23292f' },
+  { symbol: 'ADA', name: 'Cardano', gecko: 'cardano', binance: 'ADAUSDT', color: '#0033ad' },
+  { symbol: 'DOGE', name: 'Dogecoin', gecko: 'dogecoin', binance: 'DOGEUSDT', color: '#c2a633' },
+  { symbol: 'BNB', name: 'BNB', gecko: 'binancecoin', binance: 'BNBUSDT', color: '#f3ba2f' },
+  { symbol: 'LTC', name: 'Litecoin', gecko: 'litecoin', binance: 'LTCUSDT', color: '#345d9d' },
+  { symbol: 'DOT', name: 'Polkadot', gecko: 'polkadot', binance: 'DOTUSDT', color: '#e6007a' },
+  { symbol: 'LINK', name: 'Chainlink', gecko: 'chainlink', binance: 'LINKUSDT', color: '#2a5ada' },
+  { symbol: 'AVAX', name: 'Avalanche', gecko: 'avalanche-2', binance: 'AVAXUSDT', color: '#e84142' },
+  { symbol: 'POL', name: 'Polygon', gecko: 'polygon-ecosystem-token', binance: 'POLUSDT', color: '#8247e5' },
+  { symbol: 'USDC', name: 'USD Coin', gecko: 'usd-coin', binance: null, color: '#2775ca' },
+  { symbol: 'USDT', name: 'Tether', gecko: 'tether', binance: null, color: '#26a17b' },
 ];
 
 const coinsBySymbol = new Map(COINS.map((coin) => [coin.symbol, coin]));

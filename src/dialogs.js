@@ -302,7 +302,8 @@ export function createAccountDialog({ store, feed, onDone, onDelete }) {
 
   attachTickerSearch(tickerInput, feed, () => updateHint());
 
-  function open({ id = null } = {}) {
+  /** Åpner for en ny konto (eventuelt med en type ferdig valgt) eller for å endre en konto. */
+  function open({ id = null, type = 'bank' } = {}) {
     const { accounts, movements, settings } = store.getState();
     const existing = id ? accounts.find((account) => account.id === id) : null;
     editingId = existing?.id ?? null;
@@ -312,7 +313,7 @@ export function createAccountDialog({ store, feed, onDone, onDelete }) {
     suggestHeld([], {});
     showErrors(form, 'account', fields, {});
     const hasMovements = existing && movements.some((m) => m.accountId === existing.id);
-    renderTypes(existing?.type ?? 'bank', hasMovements ? accountKind(existing) : null);
+    renderTypes(existing?.type ?? (findAccountType(type) ? type : 'bank'), hasMovements ? accountKind(existing) : null);
     form.querySelector('#account-name').value = existing?.name ?? '';
     form.querySelector('#account-institution').value = existing?.institution ?? '';
     for (const slot of form.querySelectorAll('[data-slot="currency"]')) slot.textContent = currencySymbol(settings.currency);
@@ -413,10 +414,15 @@ export function createMovementDialog({ store, feed, onDone }) {
   const quantityInput = form.querySelector('#move-quantity');
   const amountInput = form.querySelector('#move-amount');
   const counterSelect = form.querySelector('#move-counter');
+  const accountField = accountSelect.closest('.field');
+  const amountField = amountInput.closest('.field');
+  const counterField = counterSelect.closest('.field');
   const fields = ['account', 'kind', 'asset', 'ticker', 'quantity', 'amount', 'counter', 'date', 'note'];
   const quoted = new Set();
   const failed = new Set();
   let touched = { quantity: false, amount: false };
+  // Overføring: et uttak fra én konto ("Fra konto") som settes inn på en annen ("Til konto").
+  let transferring = false;
 
   const state = () => store.getState();
   const currentAccount = () => state().accounts.find((account) => account.id === accountSelect.value) ?? null;
@@ -432,9 +438,10 @@ export function createMovementDialog({ store, feed, onDone }) {
   }
 
   function renderAccounts(selectedId) {
+    const usable = (account) => !transferring || canTransferWith(account);
     accountSelect.innerHTML = String(
       html`${ACCOUNT_TYPES.map((type) => {
-        const accounts = state().accounts.filter((account) => account.type === type.id);
+        const accounts = state().accounts.filter((account) => account.type === type.id && usable(account));
         if (accounts.length === 0) return '';
         return html`<optgroup label="${type.icon} ${type.name}">
           ${accounts.map((account) => html`<option value="${account.id}" ${account.id === selectedId ? 'selected' : ''}>${account.name}${account.institution ? ` (${account.institution})` : ''}</option>`)}
@@ -472,10 +479,10 @@ export function createMovementDialog({ store, feed, onDone }) {
       return;
     }
     const fromCounter = counterKind(kind, accountKind(account)) === 'withdrawal';
-    form.querySelector('[data-slot="counter-label"]').textContent = fromCounter ? 'Pengene kom fra' : 'Pengene gikk til';
+    form.querySelector('[data-slot="counter-label"]').textContent = transferring ? 'Til konto' : fromCounter ? 'Pengene kom fra' : 'Pengene gikk til';
     const keep = counterSelect.value;
     counterSelect.innerHTML = String(
-      html`<option value="">${fromCounter ? 'Utenfra (f.eks. lønn eller gave)' : 'Ut av oversikten (f.eks. brukt)'}</option>
+      html`${transferring ? '' : html`<option value="">${fromCounter ? 'Utenfra (f.eks. lønn eller gave)' : 'Ut av oversikten (f.eks. brukt)'}</option>`}
         ${options.map((other) => html`<option value="${other.id}" ${other.id === keep ? 'selected' : ''}>${other.name}${other.institution ? ` (${other.institution})` : ''}</option>`)}`,
     );
   }
@@ -501,7 +508,7 @@ export function createMovementDialog({ store, feed, onDone }) {
       buy: 'Betalt (valgfritt)',
       sell: 'Fikk utbetalt (valgfritt)',
     };
-    form.querySelector('[data-slot="amount-label"]').textContent = labels[kind] ?? 'Beløp';
+    form.querySelector('[data-slot="amount-label"]').textContent = transferring ? 'Beløp' : labels[kind] ?? 'Beløp';
     const amountHints = {
       value: kindOfAccount === 'investment' ? 'Hele verdien slik den står hos megleren nå.' : 'Hele saldoen slik den står i nettbanken nå.',
     };
@@ -543,19 +550,39 @@ export function createMovementDialog({ store, feed, onDone }) {
     }
   }
 
-  function open({ accountId = null, kind = null } = {}) {
+  /**
+   * Åpner dialogen. Alt er valgfritt: kontoen, hva som skjedde (kind), mynten/aksjen (asset),
+   * motkontoen (counterId) og overskriften. Med transfer: true blir den et rent overføringsskjema
+   * (Fra konto, Til konto, Beløp) uten valg av hva som skjedde.
+   */
+  function open({ accountId = null, kind = null, asset = null, counterId = null, title = 'Registrer', transfer = false } = {}) {
     const { accounts } = state();
     const id = accounts.some((account) => account.id === accountId) ? accountId : accounts[0]?.id;
+    transferring = transfer;
+    dialog.querySelector('#move-dialog-title').textContent = transfer ? 'Overfør' : title;
+    accountField.querySelector('label').textContent = transfer ? 'Fra konto' : 'Konto';
+    kindsBox.hidden = transfer;
+    form.querySelector('#move-counter-hint').hidden = transfer;
+    // "Til konto" rett under "Fra konto" (flyttes i DOM-en, så tab-rekkefølgen følger det du ser)
+    if (transfer) accountField.after(counterField);
+    else amountField.after(counterField);
     form.reset();
+    counterSelect.innerHTML = ''; // ikke ta med motkontoen fra forrige gang
     touched = { quantity: false, amount: false };
     quoted.clear();
     failed.clear();
     showErrors(form, 'move', fields, {});
     renderAccounts(id);
-    renderKinds(kind);
+    renderKinds(transfer ? 'withdrawal' : kind);
     form.querySelector('#move-date').value = todayISO();
     form.querySelector('[data-slot="currency"]').textContent = currencySymbol(currency());
+    if (asset && accountKind(currentAccount()) === 'stocks') tickerInput.value = asset;
     updateFields();
+    if (asset && accountKind(currentAccount()) === 'crypto' && [...assetSelect.options].some((option) => option.value === asset)) {
+      assetSelect.value = asset;
+      updateEstimate(null);
+    }
+    if (counterId && [...counterSelect.options].some((option) => option.value === counterId)) counterSelect.value = counterId;
     dialog.showModal();
     const focusKind = accountKind(currentAccount());
     (focusKind === 'stocks' && !tickerInput.value ? tickerInput : isMarketKind(focusKind) ? quantityInput : amountInput).focus();

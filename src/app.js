@@ -1,6 +1,6 @@
 // Pengeflyt – startpunktet for appen.
-// Kobler dataene til sidene: ruting (#/formue osv.), tegning av sidene, kryptokurser og alle knappene.
-import { INSTITUTIONS, accountKind, movementLabel } from './accounts.js';
+// Kobler dataene til sidene: ruting (#/oversikt, #/bank …), tegning av sidene, kurser og alle knappene.
+import { COINS, INSTITUTIONS, SECTIONS, accountKind, accountsIn, movementLabel, sectionOf } from './accounts.js';
 import { findCategory, getCategory } from './categories.js';
 import { transactionsToCSV } from './csv.js';
 import { currentMonth, isValidMonth, monthLabel, monthOf, shiftMonth, todayISO } from './dates.js';
@@ -8,35 +8,47 @@ import { generateDemoData } from './demo.js';
 import { createAccountDialog, createBudgetDialog, createMovementDialog, createTransactionDialog } from './dialogs.js';
 import { byNewest, filterTransactions, suggestBudgets } from './finance.js';
 import { icon } from './icons.js';
+import { formatMoney } from './money.js';
 import { heldAssets } from './networth.js';
 import { createPriceFeed } from './prices.js';
-import { createStore, sanitizeState } from './store.js';
+import { canTransferWith, createStore, sanitizeState } from './store.js';
 import { confirmDialog, downloadFile, showToast } from './ui.js';
 import { mountAccount, renderAccount } from './views/account.js';
+import { renderBank } from './views/bank.js';
 import { renderBudgets } from './views/budgets.js';
-import { mountNetWorth, renderNetWorth } from './views/networth.js';
+import { mountCrypto, renderCrypto } from './views/crypto.js';
+import { mountInvestments, renderInvestments } from './views/investments.js';
+import { mountOverview, renderOverview } from './views/overview.js';
 import { renderSettings } from './views/settings.js';
 import { mountSpending, renderSpending } from './views/spending.js';
 import { renderTransactions } from './views/transactions.js';
 
-// path er det som står i adressefeltet; nav er menypunktet som lyser.
+// path er det som står i adressefeltet; nav er menypunktet som lyser (for en konto: delen den hører til).
 const VIEWS = {
-  networth: { path: 'formue', title: 'Formue', nav: 'networth', render: renderNetWorth, mount: mountNetWorth },
-  account: { path: 'konto', title: 'Konto', nav: 'networth', render: renderAccount, mount: mountAccount },
-  spending: { path: 'forbruk', title: 'Forbruk', nav: 'spending', render: renderSpending, mount: mountSpending },
-  transactions: { path: 'transaksjoner', title: 'Transaksjoner', nav: 'transactions', render: renderTransactions },
-  budgets: { path: 'budsjett', title: 'Budsjett', nav: 'budgets', render: renderBudgets },
+  overview: { path: 'oversikt', title: 'Oversikt', nav: 'overview', render: renderOverview, mount: mountOverview },
+  bank: { path: 'bank', title: 'Bank', nav: 'bank', render: renderBank },
+  investments: { path: 'aksjer', title: 'Aksjer og fond', nav: 'investments', render: renderInvestments, mount: mountInvestments },
+  crypto: { path: 'krypto', title: 'Krypto', nav: 'crypto', render: renderCrypto, mount: mountCrypto },
+  account: { path: 'konto', title: 'Konto', nav: null, render: renderAccount, mount: mountAccount },
+  spending: { path: 'forbruk', title: 'Forbruk', nav: 'bank', render: renderSpending, mount: mountSpending },
+  transactions: { path: 'transaksjoner', title: 'Transaksjoner', nav: 'bank', render: renderTransactions },
+  budgets: { path: 'budsjett', title: 'Budsjett', nav: 'bank', render: renderBudgets },
   settings: { path: 'innstillinger', title: 'Innstillinger', nav: 'settings', render: renderSettings },
 };
-const ROUTES = new Map(Object.entries(VIEWS).map(([key, view]) => [view.path, key]));
-const FORMUE_ROUTES = new Set(['networth', 'account', 'settings']);
+const ROUTES = new Map([...Object.entries(VIEWS).map(([key, view]) => [view.path, key]), ['formue', 'overview']]);
+// Sider med kurser: de tegnes på nytt når en aksje eller mynt får kurs for første gang.
+const LIVE_ROUTES = new Set(['overview', 'investments', 'crypto', 'account']);
+// Sider der "Registrer"-knappen registrerer forbruk (resten registrerer bevegelser på kontoer).
+const SPENDING_ROUTES = new Set(['spending', 'transactions', 'budgets']);
+// Sider med egne knapper (Overfør, Kjøp, Selg …): her ville den flytende +-knappen bare dekket innholdet.
+const OWN_ACTION_ROUTES = new Set(['bank', 'investments', 'crypto', 'account']);
 
 const defaultFilters = (month) => ({ month, type: 'all', category: 'all', query: '' });
 const categoryName = (id) => getCategory(id).name;
 
-// Det du ser på akkurat nå. Lagres ikke; en ny innlasting starter på formuesiden.
+// Det du ser på akkurat nå. Lagres ikke; en ny innlasting starter på oversikten.
 const ui = {
-  route: 'networth',
+  route: 'overview',
   accountId: null,
   month: currentMonth(),
   filters: defaultFilters(currentMonth()),
@@ -73,7 +85,9 @@ function openStorage() {
 
 function render({ focusMain = false } = {}) {
   const view = VIEWS[ui.route];
-  const context = { state: store.getState(), ui, feed, today: todayISO(), thisMonth: currentMonth(), rerender: render };
+  const state = store.getState();
+  feed.setAssets(watchedAssets(state));
+  const context = { state, ui, feed, today: todayISO(), thisMonth: currentMonth(), rerender: render };
   const focused = rememberFocus();
   unmountView?.();
   main.innerHTML = String(view.render(context));
@@ -81,15 +95,18 @@ function render({ focusMain = false } = {}) {
   restoreFocus(focused);
   if (focusMain) main.focus({ preventScroll: true });
 
-  const accountName = ui.route === 'account' ? store.getState().accounts.find((a) => a.id === ui.accountId)?.name : null;
-  document.title = `${accountName ?? view.title} · Pengeflyt`;
+  const account = ui.route === 'account' ? state.accounts.find((a) => a.id === ui.accountId) : null;
+  document.title = `${account?.name ?? view.title} · Pengeflyt`;
+  const nav = view.nav ?? (account ? sectionOf(account) : 'overview');
   for (const link of document.querySelectorAll('[data-route]')) {
-    if (link.dataset.route === view.nav) link.setAttribute('aria-current', 'page');
+    if (link.dataset.route === nav) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   }
-  const label = quickAddsMovement() ? 'Registrer' : 'Ny transaksjon';
+  const label = SPENDING_ROUTES.has(ui.route) ? 'Ny transaksjon' : 'Registrer';
   document.querySelector('[data-slot="quick-add-label"]').textContent = label;
-  document.querySelector('.fab').setAttribute('aria-label', label);
+  const fab = document.querySelector('.fab');
+  fab.setAttribute('aria-label', label);
+  fab.hidden = OWN_ACTION_ROUTES.has(ui.route);
 }
 
 // Siden tegnes på nytt etter hver endring, så behold markøren der den var (f.eks. i søkefeltet).
@@ -112,6 +129,12 @@ function restoreFocus(saved) {
   }
 }
 
+/** Kursene appen skal følge: det du eier, og på kryptosiden alle myntene (til markedslisten). */
+function watchedAssets(state) {
+  const held = heldAssets(state.accounts, state.movements);
+  return ui.route === 'crypto' ? [...held, ...COINS.map((coin) => coin.symbol)] : held;
+}
+
 function applyTheme({ theme }) {
   if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
   else delete document.documentElement.dataset.theme;
@@ -121,7 +144,7 @@ function applyTheme({ theme }) {
 
 function readRoute() {
   const [path, query = ''] = location.hash.replace(/^#\/?/, '').split('?');
-  const route = ROUTES.get(path) ?? 'networth';
+  const route = ROUTES.get(path) ?? 'overview';
   const params = new URLSearchParams(query);
 
   if (route === 'account') ui.accountId = params.get('id');
@@ -152,13 +175,42 @@ function setMonth(month) {
 
 // ---------- Handlinger (knapper med data-action="…") ----------
 
-const quickAddsMovement = () => FORMUE_ROUTES.has(ui.route);
+/** Første konto i en del av appen som kan få denne typen bevegelse (ikke lån ved innskudd på Bank). */
+function firstAccountIn(section, kind) {
+  const accounts = accountsIn(section, store.getState().accounts);
+  if (section === 'investments' && (kind === 'buy' || kind === 'sell')) return accounts.find((a) => a.type === 'stocks');
+  return accounts.find((a) => accountKind(a) !== 'debt') ?? accounts[0];
+}
+
+/** Registrer en bevegelse i en del av appen, eller lag en konto først hvis det ikke finnes noen. */
+function moveIn(section, kind, extra = {}) {
+  const account = firstAccountIn(section, kind);
+  if (!account) {
+    const type = section === 'investments' && (kind === 'buy' || kind === 'sell') ? 'stocks' : SECTIONS[section].newType;
+    accountDialog.open({ type });
+    return;
+  }
+  movementDialog.open({ accountId: account.id, kind, ...extra });
+}
 
 const ACTIONS = {
   'quick-add': () => {
-    if (!quickAddsMovement()) transactionDialog.open();
+    if (SPENDING_ROUTES.has(ui.route)) transactionDialog.open();
+    else if (ui.route === 'account' && ui.accountId) movementDialog.open({ accountId: ui.accountId });
+    else if (ui.route === 'bank' || ui.route === 'investments' || ui.route === 'crypto') moveIn(ui.route, null);
     else if (store.getState().accounts.length === 0) accountDialog.open();
-    else movementDialog.open({ accountId: ui.route === 'account' ? ui.accountId : null });
+    else movementDialog.open();
+  },
+  'section-move': (button) => moveIn(button.dataset.section, button.dataset.kind),
+  'buy-coin': (button) => moveIn('crypto', 'buy', { asset: button.dataset.asset }),
+  transfer: () => {
+    // Fra den første kontoen (som regel brukskontoen) til den neste, f.eks. sparekontoen.
+    const accounts = accountsIn('bank', store.getState().accounts).filter(canTransferWith);
+    if (accounts.length < 2) {
+      showToast('Du trenger minst to kontoer for å overføre mellom dem.');
+      return;
+    }
+    movementDialog.open({ accountId: accounts[0].id, counterId: accounts[1].id, transfer: true });
   },
   'prev-month': () => setMonth(shiftMonth(ui.month, -1)),
   'next-month': () => setMonth(shiftMonth(ui.month, 1)),
@@ -167,7 +219,7 @@ const ACTIONS = {
   'edit-transaction': (button) => transactionDialog.open({ id: button.dataset.id }),
   'edit-budget': (button) => budgetDialog.open(button.dataset.category, ui.month),
   'suggest-budgets': suggestMissingBudgets,
-  'add-account': () => accountDialog.open(),
+  'add-account': (button) => accountDialog.open({ type: button.dataset.type }),
   'edit-account': (button) => accountDialog.open({ id: button.dataset.id }),
   'add-movement': (button) => {
     if (store.getState().accounts.length === 0) accountDialog.open();
@@ -234,12 +286,19 @@ function afterAccountSaved(kind, account) {
 }
 
 function afterMovementSaved(result, account) {
-  const label = movementLabel(result.movement.kind, accountKind(account));
-  const counterAccount = result.counter && store.getState().accounts.find((a) => a.id === result.counter.accountId);
-  const message = counterAccount
-    ? `${label} registrert på ${account.name}, og ${result.counter.kind === 'withdrawal' ? 'trukket fra' : 'satt inn på'} ${counterAccount.name}.`
-    : `${label} registrert på ${account.name}.`;
-  toastWithUndo(message, () => store.removeMovement(result.movement.id));
+  const { movement, counter } = result;
+  const { accounts, settings } = store.getState();
+  const label = movementLabel(movement.kind, accountKind(account));
+  const counterAccount = counter && accounts.find((a) => a.id === counter.accountId);
+  let message = `${label} registrert på ${account.name}.`;
+  if (counterAccount && (movement.kind === 'deposit' || movement.kind === 'withdrawal')) {
+    // Penger flyttet mellom to kontoer: si det som en overføring
+    const [from, to] = counter.kind === 'withdrawal' ? [counterAccount, account] : [account, counterAccount];
+    message = `Overførte ${formatMoney(movement.amount, settings.currency)} fra ${from.name} til ${to.name}.`;
+  } else if (counterAccount) {
+    message = `${label} registrert på ${account.name}, og ${counter.kind === 'withdrawal' ? 'trukket fra' : 'satt inn på'} ${counterAccount.name}.`;
+  }
+  toastWithUndo(message, () => store.removeMovement(movement.id));
 }
 
 async function deleteAccount(id) {
@@ -253,7 +312,7 @@ async function deleteAccount(id) {
   });
   if (!confirmed) return;
   const removed = store.removeAccount(id);
-  if (ui.route === 'account') location.hash = '#/formue';
+  if (ui.route === 'account') location.hash = `#/${SECTIONS[sectionOf(account)].path}`;
   toastWithUndo(`«${account.name}» ble slettet.`, () => store.restoreAccount(removed));
 }
 
@@ -351,7 +410,7 @@ async function loadDemoData() {
   ui.month = currentMonth();
   ui.filters = defaultFilters(ui.month);
   store.replaceAll({ ...demo, settings: before.settings });
-  if (ui.route !== 'networth') location.hash = '#/formue';
+  if (ui.route !== 'overview') location.hash = '#/oversikt';
   if (hasData) toastWithUndo('Eksempeldataene er lastet inn.', () => store.replaceAll(before));
   else showToast('Eksempeldataene er lastet inn – ta en titt rundt!');
 }
@@ -413,7 +472,6 @@ window.addEventListener('hashchange', readRoute);
 store.subscribe((state) => {
   applyTheme(state.settings);
   feed.setCurrency(state.settings.currency);
-  feed.setAssets(heldAssets(state.accounts, state.movements));
   render();
 });
 
@@ -425,7 +483,7 @@ feed.subscribe(() => {
   const coins = Object.keys(feed.prices()).sort().join();
   if (coins !== pricedCoins) {
     pricedCoins = coins;
-    if (FORMUE_ROUTES.has(ui.route) && !document.querySelector('dialog[open]')) render();
+    if (LIVE_ROUTES.has(ui.route) && !document.querySelector('dialog[open]')) render();
   }
 });
 
@@ -436,7 +494,6 @@ for (const element of document.querySelectorAll('[data-icon]')) {
 }
 document.getElementById('institutions').innerHTML = INSTITUTIONS.map((name) => `<option value="${name}"></option>`).join('');
 applyTheme(store.getState().settings);
-feed.setAssets(heldAssets(store.getState().accounts, store.getState().movements));
 readRoute();
 if (!storage) {
   showToast('Nettleseren blokkerer lagring, så endringene forsvinner når du lukker fanen.', { duration: 12000 });

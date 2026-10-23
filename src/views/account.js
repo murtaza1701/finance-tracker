@@ -1,15 +1,22 @@
 // Kontosiden: verdien til én konto, knapper for innskudd/uttak/kjøp/salg, beholdning og alle bevegelser.
-import { accountKind, actionLabel, assetName, findAccountType, isMarketKind, priceKey } from '../accounts.js';
+import { SECTIONS, accountKind, actionLabel, assetName, findAccountType, isMarketKind, priceKey, sectionOf } from '../accounts.js';
 import { mountLineChart } from '../charts.js';
 import { html } from '../html.js';
 import { icon } from '../icons.js';
 import { formatMoney, formatPrice, formatQuantity } from '../money.js';
 import { MOVEMENT_KINDS, movementsFor, summarizeNetWorth } from '../networth.js';
 import { updateLiveValues } from './live.js';
-import { historyCard, historyFor } from './networth.js';
+import { historyCard, historyFor } from './history.js';
 import { changeText, emptyState, gainText, liveChip, movementRow, trendClass } from './shared.js';
 
-const backLink = () => html`<a class="back-link" href="#/formue">${icon('arrow-left', { size: 18 })} Formue</a>`;
+// Kjøp og selg ser like ut her som på Aksjer og fond (grønn og rød)
+const TRADE_BUTTONS = { buy: 'button-buy', sell: 'button-sell' };
+
+/** Tilbake til delen kontoen hører til (Bank, Aksjer og fond eller Krypto). */
+function backLink(account) {
+  const section = account ? SECTIONS[sectionOf(account)] : { path: 'oversikt', title: 'Oversikt' };
+  return html`<a class="back-link" href="#/${section.path}">${icon('arrow-left', { size: 18 })} ${section.title}</a>`;
+}
 
 export function findAccount(ctx) {
   return ctx.state.accounts.find((account) => account.id === ctx.ui.accountId) ?? null;
@@ -19,13 +26,13 @@ export function renderAccount(ctx) {
   const { state, feed } = ctx;
   const account = findAccount(ctx);
   if (!account) {
-    return html`${backLink()}
+    return html`${backLink(null)}
       <section class="card">
         ${emptyState({
           emoji: '🔍',
           title: 'Fant ikke kontoen',
           text: 'Den kan ha blitt slettet.',
-          actions: html`<a class="button button-primary" href="#/formue">Til formuen</a>`,
+          actions: html`<a class="button button-primary" href="#/oversikt">Til oversikten</a>`,
         })}
       </section>`;
   }
@@ -39,7 +46,7 @@ export function renderAccount(ctx) {
   const money = (minor, options) => formatMoney(minor, currency, { whole: true, ...options });
 
   return html`
-    ${backLink()}
+    ${backLink(account)}
     <header class="page-header">
       <div class="account-title">
         <span class="account-type-icon" aria-hidden="true">${type.icon}</span>
@@ -70,7 +77,7 @@ export function renderAccount(ctx) {
       ${row.missing.length > 0 ? html`<p class="hero-note">Venter på kurs for ${row.missing.join(', ')} …</p>` : ''}
       <div class="button-row hero-actions">
         ${MOVEMENT_KINDS[kind].map(
-          (movementKind, i) => html`<button type="button" class="button ${i === 0 ? 'button-primary' : 'button-secondary'}" id="action-${movementKind}"
+          (movementKind, i) => html`<button type="button" class="button ${TRADE_BUTTONS[movementKind] ?? (i === 0 ? 'button-primary' : 'button-secondary')}" id="action-${movementKind}"
             data-action="add-movement" data-account="${account.id}" data-kind="${movementKind}">${actionLabel(movementKind, kind)}</button>`,
         )}
       </div>

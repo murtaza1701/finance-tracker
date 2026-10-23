@@ -248,7 +248,7 @@ function xLabels(points, maxLabels) {
  * verktøytips. points: [{ date, value }] i øre. Piltastene flytter trådkorset.
  * Gir en opprydningsfunksjon.
  */
-export function mountLineChart(container, points, { currency, label }) {
+export function mountLineChart(container, points, { currency, label, height = 220 }) {
   container.innerHTML = '<div class="chart-plot"></div><div class="chart-tooltip" aria-hidden="true" hidden></div>';
   const plot = container.querySelector('.chart-plot');
   const tooltip = container.querySelector('.chart-tooltip');
@@ -257,7 +257,6 @@ export function mountLineChart(container, points, { currency, label }) {
 
   function draw() {
     const width = Math.max(280, Math.floor(plot.clientWidth));
-    const height = 220;
     const margin = { top: 14, right: 16, bottom: 28, left: 58 };
     const plotWidth = width - margin.left - margin.right;
     const plotHeight = height - margin.top - margin.bottom;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Pengeflyt · Formue og forbruk</title>
+  <title>Pengeflyt · Formue, bank, aksjer og krypto</title>
   <meta name="description" content="Pengeflyt samler formuen din – bank, sparing, fond, aksjer og krypto – med live kryptokurser, og holder oversikt over forbruk og budsjetter.">
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -15,7 +15,7 @@
 
   <div class="app">
     <nav class="sidebar" aria-label="Hovedmeny">
-      <a class="brand" href="#/formue">
+      <a class="brand" href="#/oversikt">
         <svg class="logo" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
           <rect width="32" height="32" rx="9" fill="#256abf"/>
           <path d="M6.5 20c3.8 0 5-8 9.5-8s5.7 6.5 9.5 6.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
@@ -25,10 +25,10 @@
       <button type="button" class="button button-primary sidebar-add" data-action="quick-add">
         <span data-icon="plus"></span><span data-slot="quick-add-label">Registrer</span>
       </button>
-      <a class="nav-link" href="#/formue" data-route="networth"><span data-icon="wallet"></span><span>Formue</span></a>
-      <a class="nav-link" href="#/forbruk" data-route="spending"><span data-icon="overview"></span><span>Forbruk</span></a>
-      <a class="nav-link" href="#/transaksjoner" data-route="transactions"><span data-icon="list"></span><span>Transaksjoner</span></a>
-      <a class="nav-link" href="#/budsjett" data-route="budgets"><span data-icon="target"></span><span>Budsjett</span></a>
+      <a class="nav-link" href="#/oversikt" data-route="overview"><span data-icon="home"></span><span>Oversikt</span></a>
+      <a class="nav-link" href="#/bank" data-route="bank"><span data-icon="bank"></span><span>Bank</span></a>
+      <a class="nav-link" href="#/aksjer" data-route="investments"><span data-icon="trend"></span><span class="nav-long">Aksjer og fond</span><span class="nav-short" aria-hidden="true">Aksjer</span></a>
+      <a class="nav-link" href="#/krypto" data-route="crypto"><span data-icon="coins"></span><span>Krypto</span></a>
       <a class="nav-link" href="#/innstillinger" data-route="settings"><span data-icon="settings"></span><span>Innstillinger</span></a>
       <p class="sidebar-foot"><span data-icon="lock"></span>Dataene dine blir i denne nettleseren.</p>
     </nav>

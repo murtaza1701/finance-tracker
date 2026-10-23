@@ -15,7 +15,7 @@ export const MOVEMENT_KINDS = {
   debt: ['withdrawal', 'deposit', 'value'],
 };
 
-export const HISTORY_RANGES = { '1m': 30, '3m': 91, '6m': 182, '1y': 365, all: null };
+export const HISTORY_RANGES = { '1w': 7, '1m': 30, '3m': 91, '6m': 182, '1y': 365, all: null };
 
 const round8 = (value) => Math.round(value * 1e8) / 1e8;
 
@@ -151,6 +151,83 @@ export function heldAssets(accounts, movements) {
 }
 
 /**
+ * Kostpris per mynt/aksje med gjennomsnittsmetoden (GAV, som hos Nordnet): et salg tar med seg
+ * en forholdsmessig del av kostprisen. Gir { asset: { quantity, cost } } med cost i øre.
+ */
+export function holdingsCost(sortedMovements) {
+  const positions = {};
+  for (const m of sortedMovements) {
+    if (m.kind !== 'buy' && m.kind !== 'sell') continue;
+    const position = (positions[m.asset] ??= { quantity: 0, cost: 0 });
+    if (m.kind === 'buy') {
+      position.quantity = round8(position.quantity + m.quantity);
+      position.cost += m.amount;
+    } else {
+      const share = position.quantity > 0 ? Math.min(1, m.quantity / position.quantity) : 1;
+      position.cost = Math.round(position.cost * (1 - share));
+      position.quantity = round8(position.quantity - m.quantity);
+    }
+  }
+  for (const [asset, position] of Object.entries(positions)) {
+    if (position.quantity <= 0) delete positions[asset];
+  }
+  return positions;
+}
+
+/**
+ * Alle aksjer eller mynter på kontoene, samlet per aksje/mynt (på tvers av kontoer), største først:
+ * antall, kostpris, snittkurs (GAV), siste kurs, verdi, avkastning og endring siste døgn.
+ */
+export function holdingsOverview(accounts, movements, prices = {}) {
+  const byKey = new Map();
+  for (const account of accounts) {
+    const kind = accountKind(account);
+    if (!isMarketKind(kind)) continue;
+    for (const [asset, { quantity, cost }] of Object.entries(holdingsCost(movementsFor(account.id, movements)))) {
+      const key = priceKey(kind, asset);
+      const row = byKey.get(key) ?? { key, asset, kind, quantity: 0, cost: 0, accountIds: [] };
+      row.quantity = round8(row.quantity + quantity);
+      row.cost += cost;
+      row.accountIds.push(account.id);
+      byKey.set(key, row);
+    }
+  }
+  return [...byKey.values()]
+    .map((row) => {
+      const price = prices[row.key]?.price;
+      const value = typeof price === 'number' ? Math.round(row.quantity * price * 100) : null;
+      const gain = value === null ? null : value - row.cost;
+      return {
+        ...row,
+        price: typeof price === 'number' ? price : null,
+        change24h: prices[row.key]?.change24h ?? null,
+        averagePrice: row.cost / 100 / row.quantity,
+        value,
+        gain,
+        gainRatio: gain !== null && row.cost > 0 ? gain / row.cost : null,
+      };
+    })
+    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || a.key.localeCompare(b.key));
+}
+
+/**
+ * Hvor mye beholdningen har endret seg siste døgn (krypto) eller siden i går (aksjer), ut fra kursene.
+ * Med `total` (hele porteføljen, også fond uten dagskurs) regnes prosenten av alt, ikke bare av det som har kurs.
+ */
+export function dayChange(holdings, total = null) {
+  let amount = 0;
+  let before = 0;
+  for (const holding of holdings) {
+    if (holding.value === null || typeof holding.change24h !== 'number') continue;
+    const previous = holding.value / (1 + holding.change24h / 100);
+    amount += holding.value - previous;
+    before += previous;
+  }
+  if (total !== null) before = total - amount;
+  return { amount: Math.round(amount), ratio: before > 0 ? amount / before : null };
+}
+
+/**
  * Formuen dag for dag fra `from` til `to` (gjeld trukket fra).
  * priceOn(symbol, date) gir kursen på en dato. Gir [{ date, value }] med verdier i øre.
  */
@@ -180,8 +257,10 @@ export function rangeStart(range, today, firstDate) {
   return firstDate && start < firstDate ? firstDate : start;
 }
 
-/** Endring fra første til siste punkt i en serie. */
+/** Endring fra første til siste punkt i en serie, i kroner og i prosent av startverdien. */
 export function seriesChange(series) {
   if (series.length < 2) return null;
-  return { amount: series.at(-1).value - series[0].value, from: series[0].date };
+  const first = series[0].value;
+  const amount = series.at(-1).value - first;
+  return { amount, ratio: first > 0 ? amount / first : null, from: series[0].date };
 }

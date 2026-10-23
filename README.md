@@ -7,6 +7,10 @@ setter inn eller tar ut penger, oppdateres totalen med en gang. Appen viser ogs�
 utviklet seg over tid og hvor mye avkastning fond, aksjer og krypto har gitt. I tillegg kan du følge
 forbruket ditt måned for måned og sette budsjetter per kategori.
 
+Appen har fire hovedsider: **Oversikt** (bare formuen og en graf), **Bank**, **Aksjer og fond** og **Krypto**.
+Oppsettet er inspirert av hvordan en nettbank (som DNB), en aksjemegler (som Nordnet) og en kryptobørs (som
+Firi og Binance) viser kontoene dine, men appen har egne farger og bruker ingen logoer eller kode fra dem.
+
 Appen kjører helt i nettleseren. Det finnes ingen konto, innlogging eller server, og dataene dine forlater
 aldri maskinen (de lagres i nettleserens `localStorage`). Bare kurser hentes fra nettet.
 
@@ -15,20 +19,35 @@ aldri maskinen (de lagres i nettleserens `localStorage`). Bare kurser hentes fra
 
 ## Funksjoner
 
-**1. Formueoversikt**
-- Kontoer av alle typer: bank, sparing, fond, aksjer, krypto, annet og gjeld
-- Nettoformue (eiendeler minus gjeld), fordeling per type og avkastning på det du har satt inn
-- Graf over formuen dag for dag (1 mnd, 3 mnd, 6 mnd, 1 år eller alt), med tabellvisning
-- En egen side per konto med verdi, beholdning, graf og alle bevegelser
+**1. Oversikt (forsiden)**
+- Bare nettoformuen (eiendeler minus gjeld) og en graf over hvordan den har beveget seg
+- Velg periode (1 uke, 1 måned, 3 måneder, 6 måneder, 1 år eller alt) og se endringen i kroner og prosent;
+  grafen kan også vises som tabell
 
-**2. Innskudd, uttak og overføringer**
+**2. Bank** – bygd opp som en nettbank
+- Totalt på kontoene, med snarveier for **Overfør**, **Sett inn**, **Ta ut** og **Ny saldo**
+- Kontoene, lånene og de siste bevegelsene, gruppert per dag
+- Faner for **Forbruk**, **Transaksjoner** og **Budsjett** (se under)
+
+**3. Aksjer og fond** – bygd opp som hos en aksjemegler
+- Totalverdi, endring i dag, avkastning og hvor mye du har satt inn, med graf
+- Beholdningen som tabell: antall, snittkurs (GAV), siste kurs, endring i dag, verdi og avkastning
+- Fond med egen «Ny verdi»-knapp (fond har bare én kurs per dag), og **Kjøp**/**Selg** øverst
+
+**4. Krypto** – bygd opp som en kryptobørs
+- Total verdi i sanntid og endringen siste 24 timer, med **Kjøp**/**Selg** og graf
+- Myntene dine med verdi og døgnendring, og en markedsliste med alle myntene og en kjøpsknapp
+
+**Kontosider** – én side per konto med verdi, beholdning, graf og alle bevegelser
+
+**Innskudd, uttak og overføringer**
 - Registrer innskudd, uttak eller ny saldo/verdi med et par trykk; totalen oppdateres med en gang
 - Kjøp og salg av krypto og aksjer: skriv antall *eller* beløp, så regner appen ut det andre med kursen
-- Overføringer: velg «Pengene kom fra Brukskonto», så trekkes beløpet fra banken automatisk og formuen
-  telles ikke dobbelt
+- **Overfør** mellom egne kontoer (fra konto, til konto, beløp), eller velg «Pengene kom fra Brukskonto»
+  ved et innskudd: beløpet trekkes fra den andre kontoen, så formuen ikke telles dobbelt
 - Du kan ikke selge flere mynter enn du har, og alt kan slettes og angres (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>)
 
-**3. Live kurser for krypto og aksjer**
+**Live kurser for krypto og aksjer**
 - Krypto: ny pris hvert sekund fra Binance (WebSocket), regnet om til kroner med kursen fra CoinGecko
 - Aksjer: kurser fra Yahoo Finance hvert minutt (ca. 15 min forsinket), via en liten Cloudflare Worker
   (se [cloudflare/](cloudflare/README.md)). Søk på navnet («Equinor») og velg fra listen; utenlandske aksjer
@@ -37,13 +56,13 @@ aldri maskinen (de lagres i nettleserens `localStorage`). Bare kurser hentes fra
 - Historiske dagskurser brukes i grafen, så verdien bakover i tid blir riktig
 - Ingen innlogging eller API-nøkler: appen spør bare om kurser, aldri om hva du eier
 
-**Forbruk og budsjett** (fra første versjon av appen)
+**Forbruk og budsjett** (fra første versjon av appen, nå som faner under Bank)
 - Inntekter og utgifter med kategorier, søk, filtre og CSV-eksport (semikolon og desimalkomma for norsk Excel)
 - Månedlige budsjetter som varsler ved 80 % og viser hvor mye du kan bruke per dag resten av måneden
 - «Foreslå budsjetter» ut fra hva du har brukt de siste tre månedene
 
 **Ellers**
-- Eksempeldata: et år med kontoer for en student i Norge, med ekte historiske kryptokurser
+- Eksempeldata: et år med kontoer for en student i Norge, med ekte historiske kurser for krypto og aksjer
 - Sikkerhetskopi og gjenoppretting (JSON), og sletting av alt (med angre)
 - Fungerer på mobil (fanelinje nederst, dialoger som bunnark) og PC, i lyst og mørkt tema
 
@@ -62,7 +81,7 @@ Dobbeltklikker du `index.html`, får du en melding som forklarer hvordan appen s
 
 ## Tester
 
-112 enhetstester dekker beregningene, tolkning av tall, lagring, overføringer, kurser og eksport.
+116 enhetstester dekker beregningene, tolkning av tall, lagring, overføringer, kurser og eksport.
 
 - **I nettleseren:** start serveren og åpne **http://localhost:8000/tests/**
 - **I terminalen på Mac** (med JavaScript-motoren som følger med macOS):
@@ -90,18 +109,19 @@ styles.css            all stil, lyst/mørkt tema og mobilvisning
 serve.py              liten lokal webserver
 cloudflare/worker.js  Cloudflare Worker som henter aksjekurser fra Yahoo (med oppsett i cloudflare/README.md)
 src/
-  app.js              startpunkt: ruting (#/formue …), tegning av sider, knapper og kursstrøm
+  app.js              startpunkt: ruting (#/oversikt, #/bank …), tegning av sider, knapper og kursstrøm
   store.js            dataene: kontoer, bevegelser, transaksjoner, budsjetter; sjekk og lagring
   networth.js         formueberegninger: saldo fra bevegelser, avkastning, formue dag for dag
   prices.js           kurser: Binance (sanntid), CoinGecko (krypto i kroner, historikk), Yahoo via Workeren (aksjer)
-  accounts.js         kontotyper og kryptovalutaer
+  accounts.js         kontotyper, hvilken side (Bank, Aksjer og fond, Krypto) de hører til, og kryptovalutaer
   finance.js          forbruksberegninger: måneder, kategorier, budsjetter, forslag
   money.js, dates.js  tall, kroner og datoer på norsk
   charts.js           linjegraf, søylediagram, kategorilinjer og budsjettlinjer
   dialogs.js          dialogene for konto, bevegelse, transaksjon og budsjett
   demo.js             eksempeldata
   csv.js, html.js     CSV-eksport og trygge HTML-maler
-  views/              én fil per side, pluss live.js som oppdaterer tall når kursene endres
+  views/              én fil per side (overview, bank, investments, crypto, account, spending …),
+                      history.js (grafen med periodevalg) og live.js (oppdaterer tall når kursene endres)
 tests/                enhetstester og en liten testkjører
 ```
 
@@ -151,14 +171,20 @@ i prosjektmappen.
    Den viste at Yahoo svarte fint fra en server, forklarte hvorfor (CORS), og skrev en Cloudflare Worker
    som mellomstasjon. Jeg satte den opp i Cloudflare, og KI-en testet den (også at andre nettsider blir
    avvist) før den bygde aksjestøtten i appen.
+8. **Ryddigere sider.** Jeg syntes appen var rotete, og ville ha en forside med bare formuen og en graf,
+   og egne sider for bank, aksjer/fond og krypto som ligner på DNB, Nordnet og Firi/Binance. KI-en kan
+   ikke se innloggede sider (og skal ikke logge inn på kontoene mine), så den bygde ut fra hvordan slike
+   sider vanligvis er satt opp – med egne farger og uten logoer, fordi oppgaven sier at man ikke skal
+   utgi seg for å være ekte tjenester. Forbruk, transaksjoner og budsjett ble faner under Bank. Etterpå
+   klikket den gjennom alle sidene på PC og mobil og rettet det den fant (se under).
 
 ## Testing
 
-**Automatisk:** 105 enhetstester (`tests/`) for blant annet tolkning av beløp og antall, norsk tallformat,
-datoer over måneds- og årsskifter, saldo fra bevegelser, avkastning, formue dag for dag med historiske
-kurser, overføringer (begge sider, sletting og angring), salg av flere mynter enn man har, tolkning av svar
-fra CoinGecko og Binance, budsjetter, lagring (også ødelagte data og full lagring), sikkerhetskopier,
-CSV-eksport og eksempeldata.
+**Automatisk:** 116 enhetstester (`tests/`) for blant annet tolkning av beløp og antall, norsk tallformat,
+datoer over måneds- og årsskifter, saldo fra bevegelser, avkastning, snittkurs (GAV), endring i dag,
+formue dag for dag med historiske kurser, overføringer (begge sider, sletting og angring), salg av flere
+mynter enn man har, tolkning av svar fra CoinGecko og Binance, budsjetter, lagring (også ødelagte data og
+full lagring), sikkerhetskopier, CSV-eksport og eksempeldata.
 
 **For hånd i nettleseren** (PC og mobil 375 px, lyst og mørkt tema):
 
@@ -170,12 +196,17 @@ CSV-eksport og eksempeldata.
 | Kjøp av ny mynt (ETH) for 500 kr: antall regnes ut fra live-kursen | ✅ |
 | Salg av mer BTC enn kontoen har gir feilmelding | ✅ |
 | Sletting av bevegelse og angring | ✅ |
-| Eksempeldata med ekte historiske kurser; graf med 366 dager; fordeling og avkastning | ✅ |
+| Eksempeldata med ekte historiske kurser; graf med 366 dager og avkastning | ✅ |
 | Aksjer: søk «apple» → Apple (NASDAQ), kurs regnet om fra USD; 2 aksjer gir riktig beløp | ✅ |
 | Ny aksjekonto: søk «kongsberg» → KOG.OL, første kjøp til dagens kurs | ✅ |
 | Kjøp av en ticker som ikke finnes, gir feilmelding | ✅ |
 | Forbruk, transaksjoner, budsjett og innstillinger på norsk | ✅ |
 | Ingen side kan rulles sidelengs på mobil; dialogene vises som bunnark | ✅ |
+| Ny forside: bare formuen og grafen, periodevalg og tabellvisning | ✅ |
+| Bank: «Overfør» 1 500 kr fra Brukskonto til BSU flytter pengene, totalen står stille, og angre fjerner begge sider | ✅ |
+| Aksjer og fond: «Kjøp» åpner aksjekontoen med aksjesøk; tabellen og fondene passer på 375 px | ✅ |
+| Krypto: «Kjøp» i markedslisten åpner riktig mynt; kjøp av XRP for 200 kr regner ut antallet | ✅ |
+| Fanene under Bank og «Tilbake»-lenkene på kontosidene går til riktig side | ✅ |
 
 **Feil som ble funnet under testing og gjennomgang (alle rettet):**
 
@@ -186,16 +217,24 @@ CSV-eksport og eksempeldata.
 3. Live-oppdateringen ville **snudd fortegnet på gjelden** i oversikten (funnet ved gjennomgang).
 4. Dialogene kunne gått i **løkke** hvis kurshentingen feilet (funnet ved gjennomgang).
 5. Blinkingen ved kursendringer var **for kraftig** (hele blokker ble farget); nå blinker bare tallet.
-6. Lange antall som `51,6865696 USDT` i oversikten; nå `51,69 USDT` (full presisjon på kontosiden).
-7. Beholdningstabellen måtte rulles sidelengs på mobil; nå vises bare tickeren der (navnet leses fortsatt av
-   skjermlesere).
+6. Beholdningstabellen måtte rulles sidelengs på mobil; nå viser mobilen færre kolonner.
+
+Fra de nye sidene:
+7. **Dialogen husket motkontoen** fra forrige gang: etter en overføring til BSU ville et kryptokjøp blitt
+   trukket fra BSU-kontoen. Nå nullstilles den hver gang dialogen åpnes.
+8. **«I dag» på aksjesiden** ble regnet i prosent av bare aksjene, ikke hele porteføljen med fondet
+   (+1 % i stedet for +0,2 %).
+9. **Den flytende +-knappen dekket knapper** på mobil (f.eks. «Kjøp» i markedslisten); den vises ikke
+   lenger på sider som har egne knapper.
+10. Eksempeldataene ga **store hopp i grafen** fordi studielånet økte 17 500 kr to ganger i året; nå øker
+    det litt hver måned, som utbetalingene fra Lånekassen.
 
 Fra første versjon:
-8. **Slett**-knappen synlig i «ny transaksjon» (CSS overstyrte `hidden`).
-9. **Negative beløp ble rundet annerledes** (`Math.round(-1234.5)` er `-1234`); nå finnes en test for det.
-10. Ved **redigering ble nytt beløp lagt til bak det gamle**; nå markeres beløpet når dialogen åpnes.
-11. **Dialogen var bredere enn mobilskjermen** (standardbredden til et `<input>`).
-12. **Den lokale serveren hang ved oppstart** på enkelte nettverk (navneoppslag i Python).
+11. **Slett**-knappen synlig i «ny transaksjon» (CSS overstyrte `hidden`).
+12. **Negative beløp ble rundet annerledes** (`Math.round(-1234.5)` er `-1234`); nå finnes en test for det.
+13. Ved **redigering ble nytt beløp lagt til bak det gamle**; nå markeres beløpet når dialogen åpnes.
+14. **Dialogen var bredere enn mobilskjermen** (standardbredden til et `<input>`).
+15. **Den lokale serveren hang ved oppstart** på enkelte nettverk (navneoppslag i Python).
 
 ## Videre arbeid
 
