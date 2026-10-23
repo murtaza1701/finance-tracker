@@ -173,39 +173,6 @@ Noen valg som er tatt:
 - **Fargene i grafene** er sjekket for kontrast og fargeblindhet, og status vises aldri bare med farge
   (alltid også ikon, pil eller ord).
 
-## Slik ble KI brukt
-
-Appen er bygget med **Claude Code** (Anthropics KI-kodeagent, modellen Claude Opus 5.5), som jobbet direkte
-i prosjektmappen.
-
-1. **Første versjon.** Fra oppgaveteksten og «jeg vil lage en personal finance tracker» foreslo KI-en en
-   budsjettapp (transaksjoner, budsjetter, oversikt) som en webapp uten installasjon. Node.js fantes ikke
-   på maskinen, så den valgte en løsning som bare trenger nettleser og Python.
-2. **Ny retning.** Etter første versjon ombestemte jeg meg: jeg ville heller ha en samlet oversikt over
-   *formuen* min (bank, fond/aksjer, Binance/Firi) som holder seg oppdatert i sanntid. KI-en forklarte hva
-   som er realistisk: automatisk banksaldo krever lisens og BankID, og børsnøkler må holdes hemmelige.
-   Den foreslo heller live-kurser fra åpne kilder, og stilte tre spørsmål: erstatte eller beholde budsjett-
-   delen, språk, og automatisk synk med nøkler. Svarene ble: behold, norsk, og live-kurser uten nøkler.
-3. **Undersøke før bygging.** KI-en testet i nettleseren hvilke kurstjenester som svarer uten nøkler
-   (CoinGecko, Binance og Firi gjorde det; én annen ble blokkert) og at Binance sender priser hvert sekund.
-4. **Logikk først, med tester.** Beregningene (saldo fra bevegelser, avkastning, formue per dag,
-   overføringer, kurser) ble skrevet som rene funksjoner med enhetstester før skjermene.
-5. **Skjermer og oversetting.** Formuesiden, kontosiden og de nye dialogene ble laget, og hele appen ble
-   oversatt til norsk (også dato- og tallformat og CSV).
-6. **Testing i ekte nettleser.** KI-en klikket gjennom alle funksjonene på PC- og mobilstørrelse og i lyst
-   og mørkt tema, leste av siden og tok skjermbilder. Feil den fant, ble rettet og testet på nytt.
-7. **Aksjekurser.** Jeg spurte om aksjer og fond også kunne følges. KI-en testet seks kurskilder: Yahoo og
-   Stooq ble blokkert i nettleseren, Euronext sendte krypterte data, og Finnhub/Twelve Data krevde nøkkel.
-   Den viste at Yahoo svarte fint fra en server, forklarte hvorfor (CORS), og skrev en Cloudflare Worker
-   som mellomstasjon. Jeg satte den opp i Cloudflare, og KI-en testet den (også at andre nettsider blir
-   avvist) før den bygde aksjestøtten i appen.
-8. **Ryddigere sider.** Jeg syntes appen var rotete, og ville ha en forside med bare formuen og en graf,
-   og egne sider for bank, aksjer/fond og krypto som ligner på DNB, Nordnet og Firi/Binance. KI-en kan
-   ikke se innloggede sider (og skal ikke logge inn på kontoene mine), så den bygde ut fra hvordan slike
-   sider vanligvis er satt opp – med egne farger og uten logoer, fordi oppgaven sier at man ikke skal
-   utgi seg for å være ekte tjenester. Forbruk, transaksjoner og budsjett ble faner under Bank. Etterpå
-   klikket den gjennom alle sidene på PC og mobil og rettet det den fant (se under).
-
 ## Testing
 
 **Automatisk:** 118 enhetstester (`tests/`) for blant annet tolkning av beløp og antall, norsk tallformat,
